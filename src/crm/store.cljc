@@ -31,6 +31,9 @@
   (rep [s id])
   (all-reps [s])
   (account [s id])
+  (all-accounts [s] "every account — added for crm.dashboard's book-wide
+                     revenue rollup, which must enumerate every account's
+                     subscription rather than assume a fixed id set")
   (opportunity [s id])
   (all-opportunities [s])
   (subscription [s account-id])
@@ -78,6 +81,7 @@
   (rep [_ id] (get-in @a [:reps id]))
   (all-reps [_] (sort-by :id (vals (:reps @a))))
   (account [_ id] (get-in @a [:accounts id]))
+  (all-accounts [_] (sort-by :id (vals (:accounts @a))))
   (opportunity [_ id] (get-in @a [:opportunities id]))
   (all-opportunities [_] (sort-by :id (vals (:opportunities @a))))
   (subscription [_ account-id] (get-in @a [:subscriptions account-id]))
@@ -178,6 +182,10 @@
          (map #(pull->rep (d/pull (d/db conn) rep-pull [:rep/id %])))
          (sort-by :id)))
   (account [_ id] (pull->account (d/pull (d/db conn) account-pull [:account/id id])))
+  (all-accounts [_]
+    (->> (d/q '[:find [?id ...] :where [?e :account/id ?id]] (d/db conn))
+         (map #(pull->account (d/pull (d/db conn) account-pull [:account/id %])))
+         (sort-by :id)))
   (opportunity [_ id] (pull->opportunity (d/pull (d/db conn) opportunity-pull [:opportunity/id id])))
   (all-opportunities [_]
     (->> (d/q '[:find [?id ...] :where [?e :opportunity/id ?id]] (d/db conn))

@@ -50,7 +50,16 @@
                                       ALWAYS escalate, regardless of
                                       confidence (this actor's analog of
                                       an SLA-breach-imminent gate).
-   10. dispute-request             — never auto-resolves, any phase."
+   10. dispute-request             — never auto-resolves, any phase.
+
+  `crm.dashboard`'s book-wide pipeline funnel/revenue rollup is gated
+  the same way as any other op: a new rbac-only key,
+  `:pipeline/dashboard-query`, in `permissions` below (see ADR-0001's
+  addendum for why it is restricted to `:sales-manager` — a book-wide
+  aggregate is not a per-tier column disclosure, so none of checks 2-9
+  apply to it, but it aggregates every account's pipeline/revenue,
+  which no single `:account-holder` is entitled to, and no `:rep`
+  permission in this table is book-wide today)."
   (:require [clojure.set :as set]
             [crm.facts :as facts]
             [crm.store :as store]
@@ -70,7 +79,8 @@
 
 (def permissions
   {:rep            #{:opportunity/transition-stage}
-   :sales-manager  #{:opportunity/transition-stage :dispute/request}
+   :sales-manager  #{:opportunity/transition-stage :dispute/request
+                     :pipeline/dashboard-query}
    :account-holder #{:disclosure/query}})
 
 (def tier-columns

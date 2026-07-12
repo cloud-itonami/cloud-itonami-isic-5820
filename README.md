@@ -68,6 +68,36 @@ clojure -M:dev:test
 clojure -M:dev:run
 ```
 
+## Dashboard (pipeline funnel + revenue rollup)
+
+`src/crm/dashboard.cljc` is a book-wide, cross-record aggregate view —
+distinct from `crm.report`'s GOVERNED render of ONE opportunity's
+disclosure-tier-gated columns for ONE account-holder. It answers "how is
+the whole pipeline doing", not "what does this one customer see":
+
+- **Pipeline funnel** — a point-in-time snapshot distribution
+  (`stage-counts`) and cumulative "how far did opportunities get"
+  (`reached-counts`) across every opportunity in the store, keyed by this
+  actor's own pipeline stage order (`crm.facts/pipeline-stage-order` /
+  `exit-stages` — the same stage vocabulary `stage-sequence-gate`
+  already enforces).
+- **Conversion rates** — stage-to-stage conversion between every
+  consecutive pair of ordered stages.
+- **Revenue rollup** — a ground-truth ASC 606/IFRS 15 straight-line
+  recompute (`kotoba.crm.revrec/recognized-revenue-to-date`), summed
+  across every ACTIVE subscription — never a cached or proposal-trusting
+  sum.
+
+This is gated as a new op, `:pipeline/dashboard-query`, RBAC-restricted
+to `:sales-manager` only (see `docs/adr/0001-architecture.md`'s addendum
+for the reasoning). **Honest scope**: this is a snapshot view only — no
+time-series/trending, no cohort tracking, no stage-history log. It
+inherits `kotoba.crm.funnel`'s own documented R0 limits verbatim
+(entities currently in an exit stage, e.g. `:closed-lost`, are excluded
+from `reached-counts`/conversion rates unless they carry an explicit
+`:reached-stage` fact — this is never guessed) and `kotoba.crm.revrec`'s
+own R0 limits (straight-line recognition only).
+
 ## Documentation
 
 - `docs/business-model.md` — the OSS open-business blueprint

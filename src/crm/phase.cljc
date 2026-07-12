@@ -5,7 +5,8 @@
   the governor.
 
     Phase 0  read-only          — no writes at all. `:disclosure/query`
-                                  only (still governor-gated).
+                                  and `:pipeline/dashboard-query` only
+                                  (both still governor-gated).
     Phase 1  assisted-transition — `:opportunity/transition-stage`
                                   allowed, every transition needs human
                                   approval.
@@ -19,7 +20,7 @@
   `:auto` set, at any phase."
   )
 
-(def read-ops  #{:disclosure/query})
+(def read-ops  #{:disclosure/query :pipeline/dashboard-query})
 (def write-ops #{:opportunity/transition-stage :dispute/request})
 
 (def phases

@@ -13,7 +13,8 @@
       (is (= :tier/pro (:subscription-tier (store/account s "acct-acme"))))
       (is (= :negotiation (:stage (store/opportunity s "opp-300"))))
       (is (= 3 (count (store/all-reps s))))
-      (is (= 3 (count (store/all-opportunities s)))))))
+      (is (= 3 (count (store/all-opportunities s))))
+      (is (= 2 (count (store/all-accounts s)))))))
 
 (deftest write-and-ledger-parity
   (doseq [[label s] (backends)]
@@ -43,4 +44,5 @@
   (let [s (store/datomic-store)]
     (is (nil? (store/rep s "nope")))
     (is (= [] (store/all-reps s)))
+    (is (= [] (store/all-accounts s)))
     (is (= [] (store/ledger s)))))
