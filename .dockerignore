@@ -1,0 +1,14 @@
+.git
+.gitignore
+.cpcache
+target
+.nrepl-port
+*.log
+test/**/*.tmp
+.DS_Store
+.idea
+*.iml
+.claude
+.github
+Dockerfile
+.dockerignore

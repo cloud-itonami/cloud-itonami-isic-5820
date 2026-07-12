@@ -1,0 +1,82 @@
+name: ci
+
+# NOTE: this workflow deliberately does NOT push any image to a
+# registry and does NOT deploy anywhere. `docker build .` in the
+# `docker` job only proves the Dockerfile still builds -- it does not
+# run/publish it. Wiring a registry push / cloud deploy needs registry
+# credentials and a target-infrastructure decision that are explicitly
+# out of scope here (see the task this workflow was added for).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      # This repo's deps.edn resolves io.github.kotoba-lang/{crm,langgraph}
+      # via :local/root, and the :dev alias overrides
+      # io.github.kotoba-lang/langchain to a sibling :local/root too (same
+      # override `clojure -M:dev:test` needs). None of those are published
+      # to Maven/Clojars, so the siblings must be checked out at the exact
+      # relative layout deps.edn expects: two directories up from this
+      # repo's root, under kotoba-lang/<name> -- mirrored here as
+      # orgs/cloud-itonami/cloud-itonami-isic-5820 (this repo) +
+      # orgs/kotoba-lang/{crm,langgraph,langchain}, the same
+      # orgs/<org>/<repo> layout this actor's own west-managed superproject
+      # uses, so the relative `../../kotoba-lang/...` paths in deps.edn
+      # resolve unchanged.
+      - name: Checkout this repo
+        uses: actions/checkout@v4
+        with:
+          path: orgs/cloud-itonami/cloud-itonami-isic-5820
+
+      - name: Checkout kotoba-lang/crm
+        uses: actions/checkout@v4
+        with:
+          repository: kotoba-lang/crm
+          path: orgs/kotoba-lang/crm
+
+      - name: Checkout kotoba-lang/langgraph
+        uses: actions/checkout@v4
+        with:
+          repository: kotoba-lang/langgraph
+          path: orgs/kotoba-lang/langgraph
+
+      - name: Checkout kotoba-lang/langchain
+        uses: actions/checkout@v4
+        with:
+          repository: kotoba-lang/langchain
+          path: orgs/kotoba-lang/langchain
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: DeLaGuardo/setup-clojure@13.4
+        with:
+          cli: latest
+
+      - name: clojure -M:dev:test
+        working-directory: orgs/cloud-itonami/cloud-itonami-isic-5820
+        run: clojure -M:dev:test
+
+      - name: clojure -M:lint
+        working-directory: orgs/cloud-itonami/cloud-itonami-isic-5820
+        run: clojure -M:lint
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Build-only smoke test: the Dockerfile's builder stage clones its
+      # own kotoba-lang/{crm,langgraph,langchain} siblings internally (see
+      # Dockerfile), so no extra checkout steps are needed here -- this
+      # just catches Dockerfile/build breakage. It intentionally does NOT
+      # run the resulting container or push it anywhere.
+      - name: docker build (smoke test only, no run/push)
+        run: docker build -t cloud-itonami-isic-5820:ci-check .

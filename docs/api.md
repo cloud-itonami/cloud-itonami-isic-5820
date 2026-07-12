@@ -77,6 +77,14 @@ a fresh `crm.store/seed-db` — the same small fictitious demo dataset
 to stderr** that all state will be lost when the process exits. There is
 no silent/default path into that mode.
 
+### Running via Docker
+
+See the README's **[Running via Docker](../README.md#running-via-docker)**
+section for the exact `docker build`/`docker run` commands (verified
+end-to-end: real build, real container, real `curl` against `/health`
+and `/dashboard`, real cleanup). Env vars above are read from the
+container's environment unchanged — nothing is baked into the image.
+
 ### Persistence
 
 `crm.http/-main` picks its `Store` backend from `$ISIC5820_STORE_FILE`:

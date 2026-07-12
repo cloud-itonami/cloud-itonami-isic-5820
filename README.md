@@ -99,6 +99,57 @@ its explicit honest-scope statement — this is a real network endpoint,
 not yet production-hardened (single-process/single-tenant, no TLS
 termination built in, no rate limiting).
 
+### Running via Docker
+
+The `Dockerfile` is a multi-stage build: a builder stage (JDK + Clojure
+CLI) clones this repo's `:local/root` sibling deps
+(`kotoba-lang/{crm,langgraph,langchain}` — public repos; no uberjar/
+`tools.build` alias exists in this repo, so the builder just resolves
+the same classpath `clojure -M:dev:serve` would use) and records it to
+a file; the runtime stage is a minimal `eclipse-temurin:21-jre-alpine`
+image that replays that classpath with a plain `java` invocation as a
+non-root user — no Clojure CLI, build tool, or network access needed to
+run the container. All secrets/config
+(`ISIC5820_API_TOKEN`/`ISIC5820_STORE_FILE`/`ISIC5820_MODEL_API_KEY`
+etc.) are read from the container's environment only, never baked into
+the image; `ISIC5820_API_TOKEN` has no default, matching `crm.http`'s
+own fail-closed contract. A `HEALTHCHECK` polls `GET /health`.
+
+Build and run it (commands actually exercised end-to-end — real
+build+run+curl+cleanup, not merely believed to work):
+
+```bash
+docker build -t cloud-itonami-isic-5820 .
+
+mkdir -p /tmp/isic5820-store
+docker run -d --name isic5820 \
+  -p 18080:8080 \
+  -e ISIC5820_API_TOKEN=test-token-abc123 \
+  -e ISIC5820_STORE_FILE=/data/db.edn \
+  -v /tmp/isic5820-store:/data \
+  cloud-itonami-isic-5820
+
+curl -s http://localhost:18080/health
+# {"status":"ok","store":"reachable"}
+
+curl -s "http://localhost:18080/dashboard?role=sales-manager&year=2026&month=7" \
+  -H "Authorization: Bearer test-token-abc123"
+# {"stage-counts":{...},"reached-counts":{...},"conversion-rates":{...},"revenue":{...}}
+
+docker stop isic5820 && docker rm isic5820
+```
+
+`ISIC5820_STORE_FILE` is bind-mounted so `crm.file-store` snapshots
+survive container restarts (see "Persistence" above) —
+`/tmp/isic5820-store/db.edn` is written on the host after the first
+request.
+
+**Not included on purpose**: no `docker push`/registry step and no
+cloud-deploy automation — CI (`.github/workflows/ci.yml`) only runs
+`docker build .` as a build-breakage smoke test. Pushing to a registry
+and deploying need registry credentials and a target-infrastructure
+decision that are out of scope here.
+
 ### Real-model RevOps-LLM advisor (optional)
 
 By default the RevOps-LLM advisor (`crm.llm`) is a SEALED, deterministic
