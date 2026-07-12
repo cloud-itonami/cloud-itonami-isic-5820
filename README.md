@@ -68,6 +68,25 @@ clojure -M:dev:test
 clojure -M:dev:run
 ```
 
+## Running as a service
+
+`src/crm/http.clj` wraps this actor in a minimal, real HTTP service
+(http-kit) — a governed, bearer-token-authenticated `POST /propose` +
+RBAC-gated `GET /dashboard` + `GET /health`/`GET /` — so it can actually
+run as a live process instead of only being invoked as a library.
+**Auth is fail-closed**: the server refuses to start at all without an
+explicit token.
+
+```bash
+ISIC5820_API_TOKEN=<your-token> clojure -M:serve   # port: $ISIC5820_HTTP_PORT, default 8080
+```
+
+See **[`docs/api.md`](docs/api.md)** for the full endpoint reference
+(request/response shapes, auth header, error codes, curl examples) and
+its explicit honest-scope statement — this is a real network endpoint,
+not yet production-hardened (single-process/single-tenant, no TLS
+termination built in, no rate limiting).
+
 ## Dashboard (pipeline funnel + revenue rollup)
 
 `src/crm/dashboard.cljc` is a book-wide, cross-record aggregate view —
