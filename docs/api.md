@@ -313,3 +313,85 @@ token -> 401; a clean transition -> committed; a discount-authority
 violation reusing `crm.sim`'s own op3 scenario -> held with violations;
 `/dashboard` without the right role -> 403; `/dashboard` as
 `sales-manager` -> real data).
+
+## Real-model RevOps-LLM advisor (`src/crm/llm_realmodel.clj`)
+
+**Honest gap, and what closes it.** `src/crm/llm.cljc`'s RevOps-LLM
+advisor is a SEALED, deterministic mock (`crm.llm/mock-advisor` /
+`crm.llm/infer`) — it never calls a real language model. That was a
+genuine, known gap toward real production operation. `crm.llm-realmodel`
+adds the ADAPTER so an operator who supplies real model API credentials
+gets a genuinely wired real-model advisor — **it does not itself supply
+those credentials, and no real model call has been exercised anywhere in
+this build** (this sandbox has none of `ANTHROPIC_API_KEY`/
+`OPENAI_API_KEY`/etc.). See "What is verified vs. unverified" below
+before relying on this in production.
+
+`crm.llm.cljc` already had exactly the seam this needed:
+`crm.llm/llm-advisor` wraps ANY `langchain.model/ChatModel` in the same
+`crm.llm/Advisor` protocol (`-advise`) `crm.operation/build`'s `:advise`
+node calls — same proposal shape in, same proposal shape out. This file
+does not change that graph-facing contract at all; it only supplies a
+second, real `ChatModel` implementation (`langchain.model/openai-model`/
+`anthropic-model`, both already generic/already-tested upstream in
+`kotoba-lang/langchain`) for `llm-advisor` to wrap.
+
+### Env vars (mirrors this org's own `ITO_MODEL_*` convention)
+
+This repo follows the SAME convention `orgs/gftdcojp/cloud-itonami`'s
+`cloud_itonami.runtime` namespace already established for this lineage —
+adapted with an `ISIC5820_`-prefix so sibling `cloud-itonami-isic-*`
+actors on the same host/CI never collide on one another's model config:
+
+| Env var | Required? | Meaning |
+|---|---|---|
+| `ISIC5820_MODEL_API_KEY` | **the sole trigger** | If unset/blank, `crm.http` runs the sealed mock advisor (unchanged default behavior). If set and non-blank, `crm.http` runs the real-model advisor instead. |
+| `ISIC5820_MODEL_PROVIDER` | optional (default `openai`) | `openai` \| `anthropic` \| `openclaw` (any OpenAI-compatible endpoint at a custom URL — self-hosted gateway, Ollama, vLLM, etc.) |
+| `ISIC5820_MODEL_URL` | required for `openclaw`, optional override for openai/anthropic | Chat-completions endpoint URL. `openai`/`anthropic` already have a public default hardcoded in `langchain.model`. |
+| `ISIC5820_MODEL` | optional | Model name (default `gpt-4o-mini` for openai/openclaw, `claude-opus-4-8` for anthropic). |
+
+```bash
+ISIC5820_API_TOKEN=<token> \
+ISIC5820_MODEL_API_KEY=<real key> \
+ISIC5820_MODEL_PROVIDER=openai \
+ISIC5820_MODEL=gpt-4o-mini \
+  clojure -M:serve
+```
+
+### Startup log / `preflight`
+
+`crm.http/-main`/`start-server!` always prints which advisor mode it
+picked (`resolve-advisor!`) plus `crm.llm-realmodel/preflight`'s report —
+**the same fail-visible discipline `warn-ephemeral-store!` already
+established for storage**. `preflight` never attempts a live network
+call and never prints the API key value (only `:api-key?`, a boolean):
+
+```clojure
+(crm.llm-realmodel/preflight {:provider "openclaw"})
+;=> {:provider :openclaw, :url nil, :api-key? false, :model "gpt-4o-mini",
+;    :ok? false, :missing [:ISIC5820_MODEL_URL :ISIC5820_MODEL_API_KEY]}
+```
+
+### What is verified vs. genuinely unverified
+
+- **Verified**: `preflight`'s missing/present reporting across the full
+  permutation matrix (openai/anthropic/openclaw, present/absent url,
+  present/absent key, unknown provider, blank-string env values) — see
+  `test/crm/llm_realmodel_test.clj`'s `preflight-*` tests.
+- **Verified**: the exact JSON request this adapter sends (method,
+  bearer header, model field, message shape) and its parsing of a
+  well-formed OpenAI-compatible response — against a **real local
+  `org.httpkit.server` stub** bound to an ephemeral port (a real HTTP
+  round-trip over a real socket, not an in-process function fake) —
+  including a full round-trip through `crm.llm/llm-advisor` ->
+  `crm.llm/parse-proposal` into the exact proposal shape
+  `crm.operation/build` expects, and the fallback path for a
+  non-EDN-parseable model response.
+- **Genuinely UNVERIFIED, and cannot be verified in this sandbox**:
+  whether any ACTUAL target model API (OpenAI, Anthropic, or a real
+  OpenAI-compatible gateway) accepts this exact request shape, or how it
+  actually behaves — there are no model API credentials available here,
+  and fabricating a fake endpoint would not prove anything about a real
+  one. An operator who sets `ISIC5820_MODEL_API_KEY` for real gets a
+  genuinely wired adapter, but its real-call behavior is unverified
+  until they exercise it themselves.
