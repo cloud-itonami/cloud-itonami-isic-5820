@@ -79,7 +79,19 @@ explicit token.
 
 ```bash
 ISIC5820_API_TOKEN=<your-token> clojure -M:serve   # port: $ISIC5820_HTTP_PORT, default 8080
+# optional: ISIC5820_STORE_FILE=/path/to/db.edn -- disk-durable store (see docs/api.md's Persistence section)
 ```
+
+**Persistence**: without `$ISIC5820_STORE_FILE`, `-main` runs against an
+ephemeral in-memory store and prints a stderr WARNING — all state is
+lost on restart. Set `ISIC5820_STORE_FILE` to a path to run against
+`crm.file-store/FileStore` instead, a disk-durable store verified
+end-to-end (real process, real HTTP commit, real kill, real restart,
+data still there). See **[`docs/api.md`](docs/api.md)**'s Persistence
+section for the full explanation, including why `crm.store/DatomicStore`
+— despite its name — is *not* wired in as a durable option (it is an
+in-process EAV atom with no connection URI, exactly as ephemeral as the
+default store).
 
 See **[`docs/api.md`](docs/api.md)** for the full endpoint reference
 (request/response shapes, auth header, error codes, curl examples) and

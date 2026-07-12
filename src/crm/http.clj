@@ -39,6 +39,7 @@
             [ring.middleware.params :refer [wrap-params]]
             [langgraph.graph :as g]
             [crm.store :as store]
+            [crm.file-store :as file-store]
             [crm.operation :as operation]
             [crm.policy :as policy]
             [crm.dashboard :as dashboard])
@@ -277,8 +278,10 @@
 ;; ───────────────────────── server lifecycle ─────────────────────────
 
 (defn start-server!
-  "Starts the real HTTP server. `store` — any `crm.store/Store` (MemStore
-  or DatomicStore); `port` — TCP port (default `default-port`); `token` —
+  "Starts the real HTTP server. `store` — any `crm.store/Store`
+  (`MemStore`, `crm.store/DatomicStore`, or `crm.file-store/FileStore` —
+  see `-main`'s docstring for which of these actually survives a process
+  restart); `port` — TCP port (default `default-port`); `token` —
   the bearer token EVERY protected request must present, and MUST be a
   non-blank string. FAIL CLOSED: throws (refuses to start) if `token` is
   blank/nil rather than starting with auth silently disabled.
@@ -297,6 +300,60 @@
                     wrap-params)]
     (httpkit/run-server handler {:port port :legacy-return-value? false})))
 
+(defn- warn-ephemeral-store!
+  "Prints a loud, unmissable stderr warning that `-main` is about to run
+  against an ephemeral (process-lifetime-only) store. There is
+  deliberately no quiet/default path into this mode — see `resolve-store!`."
+  []
+  (binding [*out* *err*]
+    (println "WARNING: ISIC5820_STORE_FILE is not set — running against an"
+             "EPHEMERAL in-memory store (crm.store/seed-db). ALL STATE"
+             "(opportunities, subscriptions, accounts, reps, the audit"
+             "ledger) WILL BE LOST when this process exits or restarts.")
+    (println "WARNING: do not use this mode for real operation. Set"
+             "ISIC5820_STORE_FILE=/path/to/db.edn to run against a"
+             "disk-durable store instead (see docs/api.md's Persistence"
+             "section).")))
+
+(defn- resolve-store!
+  "Picks the `Store` backend for `-main` from environment configuration.
+
+    $ISIC5820_STORE_FILE — if set, a disk-durable `crm.file-store/FileStore`
+                            at that path: loads existing state if the file
+                            is already there, otherwise seeds it with the
+                            same demo dataset `seed-db` uses and writes
+                            that as the first snapshot. Every mutating
+                            call persists a fresh snapshot to that path —
+                            this is the ONLY backend wired here that
+                            survives a process restart, and it has been
+                            verified end-to-end (real process start ->
+                            commit over real HTTP -> kill -> restart ->
+                            data still there), not just unit-tested.
+
+  If unset, falls back to `crm.store/seed-db` (ephemeral, in-memory,
+  discarded on exit) and prints a WARNING to stderr via
+  `warn-ephemeral-store!` so an operator can never end up running without
+  persistence silently/by accident.
+
+  NOTE, deliberately NOT wired here: `crm.store/datomic-store`
+  (`DatomicStore`). Despite the name, as implemented in this repo today
+  it provides NO durability beyond `MemStore` — its constructor
+  (`(langchain.db/create-conn schema)`) is a plain in-process atom with no
+  connection URI/socket/file, so selecting it here under a
+  durability-implying env var (e.g. an `ISIC5820_DATOMIC_URI`) would be
+  exactly the 'fake persistence' this fix is supposed to remove, not add.
+  Making `DatomicStore` genuinely durable needs `crm.store` refactored to
+  accept an injected `:db-api` (see `langchain.db/api` /
+  `langchain.kotoba-db/kotoba-api`) pointed at a real Datomic Local or a
+  live kotoba-server pod — real infrastructure this entry point does not
+  have in this environment. See `crm.file-store`'s ns docstring and
+  docs/api.md's Persistence section for the full explanation."
+  []
+  (if-let [path (System/getenv "ISIC5820_STORE_FILE")]
+    (file-store/file-store! path)
+    (do (warn-ephemeral-store!)
+        (store/seed-db))))
+
 (defn -main
   "Entry point for `clojure -M:serve`. Reads:
     $ISIC5820_API_TOKEN — REQUIRED. If unset/blank, prints a fatal error
@@ -304,12 +361,12 @@
                           server (fail closed — no 'runs with no auth'
                           fallback).
     $ISIC5820_HTTP_PORT — optional, default `default-port` (8080).
-
-  Runs against a fresh `crm.store/seed-db` (the same demo/fictitious
-  dataset `crm.sim` uses) — operators who want a persistent/real backend
-  should call `start-server!` programmatically with their own
-  `crm.store/datomic-store`/`DatomicStore` instance instead of using
-  this CLI entry point directly."
+    $ISIC5820_STORE_FILE — optional. See `resolve-store!`: if set, runs
+                          against a disk-durable `crm.file-store/FileStore`
+                          at that path (survives restart); if unset, runs
+                          against an ephemeral `crm.store/seed-db` and
+                          prints a stderr WARNING that state will be lost
+                          on exit."
   [& _]
   (let [token (System/getenv "ISIC5820_API_TOKEN")
         port  (if-let [p (System/getenv "ISIC5820_HTTP_PORT")]
@@ -320,7 +377,7 @@
             (println "FATAL: ISIC5820_API_TOKEN is not set (or blank)."
                      "Refusing to start crm.http with auth disabled."))
           (System/exit 1))
-      (let [store (store/seed-db)
+      (let [store (resolve-store!)
             srv (start-server! {:store store :port port :token token})]
         (println (str "crm.http listening on :" (httpkit/server-port srv)
                        " (actor=" actor-name " isic=" isic-code

@@ -63,15 +63,62 @@ you must supply one.
 ```bash
 ISIC5820_API_TOKEN=<your-token> clojure -M:serve
 # optional: ISIC5820_HTTP_PORT=9000 (default 8080)
+# optional: ISIC5820_STORE_FILE=/path/to/db.edn  -- see "Persistence" below
 ```
 
-This starts the server against a fresh `crm.store/seed-db` — the same
-small fictitious demo dataset `crm.sim` uses (reps `rep-100`/`rep-200`/
-`rep-300`, accounts `acct-acme`/`acct-basic`, three opportunities). To
-run against a real/persistent backend, call
-`crm.http/start-server!` programmatically with your own
-`crm.store/datomic-store`/`DatomicStore` instance instead of using the
-CLI entry point.
+If `$ISIC5820_STORE_FILE` is **unset**, `-main` starts the server against
+a fresh `crm.store/seed-db` — the same small fictitious demo dataset
+`crm.sim` uses (reps `rep-100`/`rep-200`/`rep-300`, accounts
+`acct-acme`/`acct-basic`, three opportunities) — **and prints a WARNING
+to stderr** that all state will be lost when the process exits. There is
+no silent/default path into that mode.
+
+### Persistence
+
+`crm.http/-main` picks its `Store` backend from `$ISIC5820_STORE_FILE`:
+
+- **Set** (e.g. `ISIC5820_STORE_FILE=/var/lib/isic5820/db.edn`) — runs
+  against `crm.file-store/FileStore`: a full EDN snapshot of every
+  rep/account/opportunity/subscription and the audit ledger is written to
+  that path after every mutating call (write-then-rename, so a crash
+  mid-write can't leave a truncated snapshot), and loaded back from that
+  path the next time the process starts. **This is disk-durable and has
+  been verified end-to-end**: a real `clojure -M:serve` process was
+  started against a temp `ISIC5820_STORE_FILE`, a real `POST /propose`
+  committed a stage transition over real HTTP, the process was killed
+  (`kill`, not a graceful shutdown), restarted against the same file, and
+  `GET /dashboard` showed the committed change was still there. See
+  `crm.file-store`'s ns docstring for what this backend is NOT (not
+  multi-writer-safe — one path, one process at a time; no query engine;
+  no transaction history).
+- **Unset** — runs against `crm.store/seed-db` (ephemeral, in-memory,
+  discarded on exit) and prints a stderr WARNING every time.
+
+**`crm.store/datomic-store`/`DatomicStore` is deliberately NOT wired into
+`-main` at all**, despite this file's prior revision describing it as "a
+real/persistent backend" — that description was inaccurate for how
+`DatomicStore` is actually implemented in this repo. Its constructor
+(`(->DatomicStore (langchain.db/create-conn schema))`) builds a plain
+`(atom {:db ... :log []})` via `langchain.db` (a pure, dependency-free,
+**in-process** EAV emulation — see that ns's docstring) — there is no
+connection URI, no socket, no file, nothing that outlives the JVM heap.
+It is Datomic-API-*shaped* (which is what makes
+`test/crm/store_contract_test.clj`'s `MemStore ≡ DatomicStore` parity
+test meaningful for a *future* backend swap), not Datomic-*backed*. As
+shipped, selecting `DatomicStore` for `-main` would be exactly as
+ephemeral as `seed-db` — just with a name that implies otherwise — so
+this fix does not offer it as an `-main` option under any env var name
+(e.g. an `ISIC5820_DATOMIC_URI`), to avoid exactly the "silently
+substitute an in-memory store relabeled as persistent" trap.
+
+Making `DatomicStore` genuinely durable is real follow-up work, not done
+here: `crm.store` would need to accept an injected `:db-api` map (the
+shape `langchain.db/api` already documents) instead of hardcoding calls
+to `langchain.db` directly, pointed at either a real Datomic Local
+process or a live kotoba-server pod via
+`langchain.kotoba-db/kotoba-api` — both require infrastructure (a running
+server, credentials) this sandboxed build environment does not have, so
+that path was not attempted here rather than faked.
 
 ## Endpoints
 
