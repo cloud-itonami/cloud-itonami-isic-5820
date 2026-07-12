@@ -54,6 +54,10 @@ The token is whatever value the server was started with — see
   "runs with auth disabled" fallback anywhere in this code.
 - Every request to a protected endpoint that doesn't present the exact
   matching bearer token gets `401 {"error": "unauthorized"}`.
+- The token match itself is a **constant-time comparison**
+  (`java.security.MessageDigest/isEqual` over UTF-8 bytes, not `=`) —
+  closes the timing-attack gap recorded as an unmitigated finding in
+  ADR-2607124600.
 
 There is no built-in default/fallback token anywhere in `crm.http` —
 you must supply one.

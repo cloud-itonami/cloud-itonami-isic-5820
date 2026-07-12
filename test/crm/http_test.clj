@@ -98,6 +98,27 @@
     (is (= 401 status))
     (is (= "unauthorized" (:error json)))))
 
+;; Regression coverage for the constant-time token comparison
+;; (`crm.http/constant-time-string=`, ADR-2607124600): a naive `=`-based
+;; rewrite bug (e.g. comparing lengths and short-circuiting, or dropping
+;; the byte-array conversion) would most plausibly surface as one of
+;; these two behavioral cases going wrong, so both are asserted
+;; explicitly rather than just re-testing the already-covered "no
+;; token" and "correct token" paths above. This is a behavioral
+;; assertion (still rejected -> 401), NOT a timing measurement.
+(deftest propose-with-wrong-length-token-is-unauthorized
+  (let [wrong-length-token (str test-token "-extra-suffix")
+        {:keys [status json]} (json-req! :post "/propose" {:body op1-body} wrong-length-token)]
+    (is (= 401 status))
+    (is (= "unauthorized" (:error json)))))
+
+(deftest propose-with-same-length-wrong-token-is-unauthorized
+  (let [same-length-wrong-token (str (subs test-token 0 (dec (count test-token))) "X")]
+    (is (= (count test-token) (count same-length-wrong-token)))
+    (let [{:keys [status json]} (json-req! :post "/propose" {:body op1-body} same-length-wrong-token)]
+      (is (= 401 status))
+      (is (= "unauthorized" (:error json))))))
+
 (deftest propose-with-valid-token-and-clean-transition-commits
   (testing "op1 from crm.sim: opp-100 :prospecting -> :qualification, sourced -> commit"
     (let [{:keys [status json]} (json-req! :post "/propose" {:body op1-body} test-token)]

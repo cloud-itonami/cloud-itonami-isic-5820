@@ -93,9 +93,42 @@
     (when (str/starts-with? h "Bearer ")
       (str/trim (subs h (count "Bearer "))))))
 
-(defn- authorized? [req token]
+(defn- constant-time-string=
+  "Constant-time equality for secret comparison (bearer tokens), NOT
+  plain `=`. `=`/`.equals` on strings/CharSequences short-circuits at
+  the first differing character/length, so its wall-clock time leaks
+  how many leading bytes matched — an attacker who can measure response
+  latency could in principle recover a valid token one byte at a time,
+  far cheaper than brute force (flagged as a real, unmitigated gap in
+  ADR-2607124600).
+
+  Uses `java.security.MessageDigest/isEqual`, the JDK's standard
+  constant-time byte-array comparator (no extra dependency). It has
+  been constant-time WITH RESPECT TO CONTENT regardless of a length
+  mismatch since JDK 6; this fleet's JDK (Temurin 21, confirmed via
+  `java -version` at implementation time) postdates that by over a
+  decade, so an explicit `(= (count a) (count b))` length-gate before
+  calling it is deliberately NOT added here — that would only
+  reintroduce a smaller but real length-based timing signal that
+  `isEqual` itself already avoids internally."
+  [^String a ^String b]
+  (java.security.MessageDigest/isEqual
+   (.getBytes a "UTF-8")
+   (.getBytes b "UTF-8")))
+
+(defn- authorized?
+  "True iff `token` (the server's configured secret) is non-blank AND
+  matches the request's `Authorization: Bearer <...>` header. The
+  match uses `constant-time-string=`, not `=`, specifically so this
+  comparison does not leak per-byte match information via timing (see
+  its docstring and ADR-2607124600) — this is internal hardening only,
+  the function's contract (boolean, requires a non-blank `token` and a
+  present `Bearer` header) is unchanged."
+  [req token]
   (and (some? token) (not (str/blank? token))
-       (= token (bearer-token req))))
+       (let [presented (bearer-token req)]
+         (and (some? presented)
+              (constant-time-string= token presented)))))
 
 ;; ───────────────────────── request coercion ─────────────────────────
 ;; JSON has no keyword type. This actor's request/proposal maps are
