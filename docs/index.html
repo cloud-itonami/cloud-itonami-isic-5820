@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>cloud-itonami-isic-5820 | cloud-itonami-isic-5820</title>
+  <meta name="description" content="cloud-itonami-isic-5820 — governed open occupation blueprint (ISIC 5820).">
+  <style>
+    :root { --bg:#f5f7fa; --card:#fff; --fg:#1b1f24; --muted:#57606a; --accent:#1e3a8a; --line:#d0d7de; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg:#0d1117; --card:#161b22; --fg:#e6edf3; --muted:#8d96a0; --accent:#58a6ff; --line:#30363d; }
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: linear-gradient(135deg, var(--bg), #c3cfe2);
+           min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; color: var(--fg); }
+    .container { max-width: 800px; width: 100%; background: var(--card); border-radius: 12px;
+                 box-shadow: 0 10px 40px rgba(0,0,0,.1); padding: 48px 40px; border: 1px solid var(--line); }
+    h1 { font-size: 1.85rem; color: var(--accent); margin-bottom: 8px; }
+    .badge { display: inline-block; background: #e0e7ff; color: var(--accent); padding: 3px 10px;
+             border-radius: 4px; font-size: .85rem; font-weight: 600; margin-bottom: 20px; }
+    @media (prefers-color-scheme: dark) { .badge { background: #1f2a44; } }
+    .pitch { border-left: 4px solid var(--accent); padding-left: 16px; margin: 20px 0 28px; color: var(--muted); line-height: 1.7; }
+    .pitch p { margin-bottom: 10px; }
+    .meta { font-size: .9rem; color: var(--muted); margin-bottom: 24px; }
+    .meta code { background: var(--bg); padding: 1px 6px; border-radius: 4px; }
+    .cta { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 28px; }
+    @media (max-width: 560px) { .cta { grid-template-columns: 1fr; } }
+    .cta a { display: block; text-align: center; text-decoration: none; padding: 14px 18px;
+             border-radius: 8px; font-weight: 600; }
+    .cta .primary { background: var(--accent); color: #fff; }
+    .cta .secondary { border: 1.5px solid var(--accent); color: var(--accent); }
+    ul.links { list-style: none; font-size: .95rem; }
+    ul.links li { margin: 8px 0; }
+    a { color: var(--accent); }
+    footer { margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--line);
+             font-size: .85rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>cloud-itonami-isic-5820</h1>
+    <div class="badge">ISIC 5820 · maturity unknown</div>
+    <div class="pitch">
+      <p>Open Business Blueprint for ISIC Rev.4 5820: software publishing, narrowed to a commercial CRM / subscription-commerce SaaS platform business — the Salesforce/HubSpot class of business — published as an OSS business that any qualified operator can fork, deploy, run, improve and sell.</p>
+      <p>Sales opportunities move through a governed pipeline and get transitioned/closed by reps whose discount authority and whose accounts' subscription entitlements are checked before anything commits. Built on this workspace's [langgraph](https://github.com/kotoba-lang/langgraph) StateGraph runtime and [kotoba-lang/crm](https://github.com/kotoba-lang/crm)'s technical commons — the same actor pattern as [cloud-itonami-isic-6209](https://github.com/cloud-itonami/cloud-itonami-isic-6209) and [cloud-itonami-isic-6920](https://github.com/cloud-itonami/cloud-itonami-isic-6920).</p>
+      <p>&gt; Why an actor layer at all? A RevOps-LLM is great at normalizing &gt; incoming deal activity and drafting stage-transition proposals — but it &gt; has no notion of discount-authority limits, subscription entitlement &gt; scope, pipeline stage-sequence validity, or revenue-recognition &gt; correctness. Letting it commit directly invites an unauthorized &gt; discount reaching booked revenue, a deal close silently granting &gt; subscription features the account never paid for, a pipeline stage &gt; being skipped to fabricate momentum, or a booked amount that disagrees &gt; with ASC 606/IFRS 15 straight-line recognition going unnoticed. This &gt; project seals the RevOps-LLM into a single node and wraps it with an &gt; independent SubscriptionGovernor, a human review workflow, and &gt; an immutable audit ledger.</p>
+    </div>
+    <p class="meta">Domain <code>operations</code> · Governor <code>governor</code> · License <code>AGPL-3.0-or-later</code></p>
+    <div class="cta">
+      <a class="primary" href="https://itonami.cloud/isco-1212/">Fork + self-host claim</a>
+      <a class="secondary" href="https://itonami.cloud/docs/go-live.md">Paid go-live path</a>
+    </div>
+    <ul class="links">
+      <li><a href="https://github.com/cloud-itonami/cloud-itonami-isic-5820">GitHub repository</a></li>
+      <li><a href="./operator-quickstart.md">Operator quickstart</a></li>
+      <li><a href="https://github.com/cloud-itonami/cloud-itonami-isic-5820/blob/main/blueprint.edn">blueprint.edn</a></li>
+      <li><a href="https://github.com/cloud-itonami/cloud-itonami-isic-5820/blob/main/README.md">README</a></li>
+    </ul>
+    <footer>
+      <p>Open occupation blueprint — no invented usage or revenue metrics. Product face generated for impl-product maturity (Lane C).</p>
+    </footer>
+  </main>
+</body>
+</html>
