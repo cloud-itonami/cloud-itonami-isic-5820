@@ -97,6 +97,10 @@
   (all-opportunities [_] (store/all-opportunities mem))
   (subscription [_ account-id] (store/subscription mem account-id))
   (ledger [_] (store/ledger mem))
+  (lead [_ id] (store/lead mem id))
+  (all-leads [_] (store/all-leads mem))
+  (contact [_ id] (store/contact mem id))
+  (all-contacts [_] (store/all-contacts mem))
   (commit-record! [s record]
     (store/commit-record! mem record)
     (persist! path @(:a mem))
@@ -112,7 +116,11 @@
   (with-opportunities [s ops]
     (store/with-opportunities mem ops) (persist! path @(:a mem)) s)
   (with-subscriptions [s subs]
-    (store/with-subscriptions mem subs) (persist! path @(:a mem)) s))
+    (store/with-subscriptions mem subs) (persist! path @(:a mem)) s)
+  (with-leads [s ls]
+    (store/with-leads mem ls) (persist! path @(:a mem)) s)
+  (with-contacts [s cs]
+    (store/with-contacts mem cs) (persist! path @(:a mem)) s))
 
 (defn file-store!
   "Opens (or creates) a disk-durable `Store` at `path` (a plain filesystem

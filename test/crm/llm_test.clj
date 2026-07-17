@@ -42,3 +42,17 @@
         p (llm/infer db {:op :dispute/request :subject "opp-100" :disputed-field :stage :claim :qualification})]
     (is (= :correction-apply (:effect p)))
     (is (< (:confidence p) 0.9))))
+
+(deftest lead-qualify-proposal-carries-lead-id-and-to-status
+  (let [db (store/seed-db)
+        p (llm/infer db {:op :lead/qualify :subject "lead-100" :lead-id "lead-100" :to-status :working})]
+    (is (= :lead-status-upsert (:effect p)))
+    (is (= {:lead-id "lead-100" :to-status :working} (:value p)))))
+
+(deftest lead-convert-proposal-drafts-contact-and-opportunity-from-lead-fields
+  (let [db (store/seed-db)
+        p (llm/infer db {:op :lead/convert :subject "lead-200" :lead-id "lead-200"})]
+    (is (= :lead-convert-upsert (:effect p)))
+    (is (= "Sam Okafor (demo)" (get-in p [:value :contact :name])))
+    (is (= "sam@acme.example" (get-in p [:value :contact :email])))
+    (is (some? (get-in p [:value :opportunity :id])))))

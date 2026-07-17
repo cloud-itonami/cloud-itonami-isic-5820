@@ -38,19 +38,28 @@
   (all-opportunities [s])
   (subscription [s account-id])
   (ledger [s])
+  (lead [s id])
+  (all-leads [s])
+  (contact [s id])
+  (all-contacts [s])
   (commit-record! [s record] "apply a committed op's record to the SSoT")
   (append-ledger! [s fact]   "append one immutable decision/disclosure fact")
   (with-reps [s reps]                 "replace/seed reps (map id→rep)")
   (with-accounts [s accounts]         "replace/seed accounts (map id→account)")
   (with-opportunities [s opportunities] "replace/seed opportunities (map id→opportunity)")
-  (with-subscriptions [s subscriptions] "replace/seed subscriptions (map account-id→subscription)"))
+  (with-subscriptions [s subscriptions] "replace/seed subscriptions (map account-id→subscription)")
+  (with-leads [s leads]               "replace/seed leads (map id→lead)")
+  (with-contacts [s contacts]         "replace/seed contacts (map id→contact)"))
 
 ;; ───────────────────────── demo data (fictitious) ─────────────────────
 
 (defn demo-data
   "A small, entirely fictitious dataset so the actor + tests run offline.
   `opp-300` sits at `:negotiation` with a discount request purely to
-  exercise the discount-authority-gate governor gate."
+  exercise the discount-authority-gate governor gate. `lead-200` is
+  already `:qualified` + account-matched purely to exercise
+  `:lead/convert`; `lead-100` is `:new` (not yet convertible) to exercise
+  the lead-status gate's rejection path."
   []
   {:reps
    {"rep-100" {:id "rep-100" :name "田中 太郎(デモ)" :discount-tier :tier/rep}
@@ -72,7 +81,15 @@
                   :start-date {:year 2026 :month 1 :day 1} :active? true}
     "acct-basic" {:account-id "acct-basic" :product-tier :tier/basic
                   :contract-value-usd 6000.0 :term-months 12
-                  :start-date {:year 2026 :month 1 :day 1} :active? true}}})
+                  :start-date {:year 2026 :month 1 :day 1} :active? true}}
+   :leads
+   {"lead-100" {:id "lead-100" :name "Alex Rivera (demo)" :email "alex@newprospect.example"
+                :company "New Prospect Inc (demo)" :source :inbound-web-form
+                :status :new :account-id nil :owner-rep-id "rep-100"}
+    "lead-200" {:id "lead-200" :name "Sam Okafor (demo)" :email "sam@acme.example"
+                :company "Acme Corp (demo)" :source :outbound-prospecting
+                :status :qualified :account-id "acct-acme" :owner-rep-id "rep-200"}}
+   :contacts {}})
 
 ;; ───────────────────────── MemStore (default) ─────────────────────────
 
@@ -86,6 +103,10 @@
   (all-opportunities [_] (sort-by :id (vals (:opportunities @a))))
   (subscription [_ account-id] (get-in @a [:subscriptions account-id]))
   (ledger [_] (:ledger @a))
+  (lead [_ id] (get-in @a [:leads id]))
+  (all-leads [_] (sort-by :id (vals (:leads @a))))
+  (contact [_ id] (get-in @a [:contacts id]))
+  (all-contacts [_] (sort-by :id (vals (:contacts @a))))
   (commit-record! [s {:keys [effect path value]}]
     (case effect
       :stage-transition-upsert
@@ -95,13 +116,31 @@
                     :closed? (boolean (:closed? value))})
       :correction-apply
       (swap! a update-in [:opportunities (first path)] merge (:patch value))
+      :lead-status-upsert
+      (swap! a update-in [:leads (:lead-id value)] merge {:status (:to-status value)})
+      :lead-convert-upsert
+      (let [{:keys [lead-id contact opportunity]} value
+            acct-id (get-in @a [:leads lead-id :account-id])]
+        (swap! a
+               (fn [db]
+                 (-> db
+                     (update-in [:leads lead-id] merge {:status :converted
+                                                        :converted-to-contact-id (:id contact)
+                                                        :converted-to-opportunity-id (:id opportunity)})
+                     (assoc-in [:contacts (:id contact)]
+                               (assoc contact :account-id acct-id :lead-id lead-id))
+                     (assoc-in [:opportunities (:id opportunity)]
+                               (assoc opportunity :account-id acct-id :stage :prospecting
+                                      :discount-pct 0 :closed? false))))))
       nil)
     s)
   (append-ledger! [_ fact] (swap! a update :ledger conj fact) fact)
   (with-reps [s rs]          (when (seq rs) (swap! a assoc :reps rs)) s)
   (with-accounts [s accts]   (when (seq accts) (swap! a assoc :accounts accts)) s)
   (with-opportunities [s ops] (when (seq ops) (swap! a assoc :opportunities ops)) s)
-  (with-subscriptions [s subs] (when (seq subs) (swap! a assoc :subscriptions subs)) s))
+  (with-subscriptions [s subs] (when (seq subs) (swap! a assoc :subscriptions subs)) s)
+  (with-leads [s ls]          (when (seq ls) (swap! a assoc :leads ls)) s)
+  (with-contacts [s cs]       (when (seq cs) (swap! a assoc :contacts cs)) s))
 
 (defn seed-db
   "A MemStore seeded with the demo data. The deterministic default."
@@ -115,7 +154,9 @@
    :account/id         {:db/unique :db.unique/identity}
    :opportunity/id     {:db/unique :db.unique/identity}
    :subscription/account-id {:db/unique :db.unique/identity}
-   :ledger/seq         {:db/unique :db.unique/identity}})
+   :ledger/seq         {:db/unique :db.unique/identity}
+   :lead/id            {:db/unique :db.unique/identity}
+   :contact/id         {:db/unique :db.unique/identity}})
 
 (defn- enc [v] (pr-str v))
 (defn- dec* [s] (when s (edn/read-string s)))
@@ -174,6 +215,40 @@
   [:subscription/account-id :subscription/product-tier :subscription/contract-value-usd
    :subscription/term-months :subscription/start-date :subscription/active])
 
+(defn- lead->tx [{:keys [id name email company source status account-id owner-rep-id
+                         converted-to-contact-id converted-to-opportunity-id]}]
+  (cond-> {:lead/id id :lead/name name :lead/email email :lead/company company
+           :lead/source source :lead/status status :lead/owner-rep-id owner-rep-id}
+    account-id                  (assoc :lead/account-id account-id)
+    converted-to-contact-id     (assoc :lead/converted-to-contact-id converted-to-contact-id)
+    converted-to-opportunity-id (assoc :lead/converted-to-opportunity-id converted-to-opportunity-id)))
+
+(defn- pull->lead [m]
+  (when (:lead/id m)
+    {:id (:lead/id m) :name (:lead/name m) :email (:lead/email m) :company (:lead/company m)
+     :source (:lead/source m) :status (:lead/status m) :account-id (:lead/account-id m)
+     :owner-rep-id (:lead/owner-rep-id m)
+     :converted-to-contact-id (:lead/converted-to-contact-id m)
+     :converted-to-opportunity-id (:lead/converted-to-opportunity-id m)}))
+
+(def ^:private lead-pull
+  [:lead/id :lead/name :lead/email :lead/company :lead/source :lead/status
+   :lead/account-id :lead/owner-rep-id :lead/converted-to-contact-id
+   :lead/converted-to-opportunity-id])
+
+(defn- contact->tx [{:keys [id account-id lead-id name email role]}]
+  (cond-> {:contact/id id :contact/account-id account-id :contact/name name :contact/email email}
+    role    (assoc :contact/role role)
+    lead-id (assoc :contact/lead-id lead-id)))
+
+(defn- pull->contact [m]
+  (when (:contact/id m)
+    {:id (:contact/id m) :account-id (:contact/account-id m) :name (:contact/name m)
+     :email (:contact/email m) :role (:contact/role m) :lead-id (:contact/lead-id m)}))
+
+(def ^:private contact-pull
+  [:contact/id :contact/account-id :contact/name :contact/email :contact/role :contact/lead-id])
+
 (defrecord DatomicStore [conn]
   Store
   (rep [_ id] (pull->rep (d/pull (d/db conn) rep-pull [:rep/id id])))
@@ -193,6 +268,16 @@
          (sort-by :id)))
   (subscription [_ account-id]
     (pull->subscription (d/pull (d/db conn) subscription-pull [:subscription/account-id account-id])))
+  (lead [_ id] (pull->lead (d/pull (d/db conn) lead-pull [:lead/id id])))
+  (all-leads [_]
+    (->> (d/q '[:find [?id ...] :where [?e :lead/id ?id]] (d/db conn))
+         (map #(pull->lead (d/pull (d/db conn) lead-pull [:lead/id %])))
+         (sort-by :id)))
+  (contact [_ id] (pull->contact (d/pull (d/db conn) contact-pull [:contact/id id])))
+  (all-contacts [_]
+    (->> (d/q '[:find [?id ...] :where [?e :contact/id ?id]] (d/db conn))
+         (map #(pull->contact (d/pull (d/db conn) contact-pull [:contact/id %])))
+         (sort-by :id)))
   (ledger [_]
     (->> (d/q '[:find ?s ?f :where [?e :ledger/seq ?s] [?e :ledger/fact ?f]] (d/db conn))
          (sort-by first)
@@ -206,6 +291,22 @@
                                                    :closed? (boolean (:closed? value))}))])
       :correction-apply
       (d/transact! conn [(opportunity->tx (merge (opportunity s (first path)) (:patch value)))])
+      :lead-status-upsert
+      (d/transact! conn [(lead->tx (merge (lead s (:lead-id value)) {:status (:to-status value)}))])
+      :lead-convert-upsert
+      (let [{:keys [lead-id contact-rec opportunity-rec]}
+            {:lead-id (:lead-id value)
+             :contact-rec (assoc (:contact value) :account-id (:account-id (lead s (:lead-id value)))
+                                  :lead-id (:lead-id value))
+             :opportunity-rec (assoc (:opportunity value)
+                                     :account-id (:account-id (lead s (:lead-id value)))
+                                     :stage :prospecting :discount-pct 0 :closed? false)}]
+        (d/transact! conn [(lead->tx (merge (lead s lead-id)
+                                            {:status :converted
+                                             :converted-to-contact-id (:id contact-rec)
+                                             :converted-to-opportunity-id (:id opportunity-rec)}))
+                           (contact->tx contact-rec)
+                           (opportunity->tx opportunity-rec)]))
       nil)
     s)
   (append-ledger! [s fact]
@@ -215,6 +316,10 @@
     (when (seq rs) (d/transact! conn (mapv rep->tx (vals rs)))) s)
   (with-accounts [s accts]
     (when (seq accts) (d/transact! conn (mapv account->tx (vals accts)))) s)
+  (with-leads [s ls]
+    (when (seq ls) (d/transact! conn (mapv lead->tx (vals ls)))) s)
+  (with-contacts [s cs]
+    (when (seq cs) (d/transact! conn (mapv contact->tx (vals cs)))) s)
   (with-opportunities [s ops]
     (when (seq ops) (d/transact! conn (mapv opportunity->tx (vals ops)))) s)
   (with-subscriptions [s subs]
@@ -222,10 +327,11 @@
 
 (defn datomic-store
   ([] (datomic-store {}))
-  ([{:keys [reps accounts opportunities subscriptions]}]
+  ([{:keys [reps accounts opportunities subscriptions leads contacts]}]
    (let [s (->DatomicStore (d/create-conn schema))]
      (-> s (with-reps reps) (with-accounts accounts)
-         (with-opportunities opportunities) (with-subscriptions subscriptions)))))
+         (with-opportunities opportunities) (with-subscriptions subscriptions)
+         (with-leads leads) (with-contacts contacts)))))
 
 (defn datomic-seed-db
   "A DatomicStore seeded with the demo data — proves protocol parity."
