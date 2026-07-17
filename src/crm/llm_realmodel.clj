@@ -53,18 +53,21 @@
 
   ## Honest, explicit gap this file does NOT close
 
-  There are no model API credentials in the sandbox this file was built
-  in (checked: no ANTHROPIC_API_KEY/OPENAI_API_KEY/etc. in env) — so a
-  real end-to-end call through `real-advisor` to an actual model API has
-  NEVER been exercised. What IS verified (see `test/crm/llm_realmodel_test.clj`):
-  `preflight`'s missing/present reporting across every permutation, and
-  the exact JSON request/response shape this adapter sends/parses against
-  a LOCAL http-kit stub server standing in for \"the model API\" (proves
-  the adapter builds a well-formed OpenAI-compatible request and parses a
-  well-formed response — it does NOT prove any real target model API
-  actually accepts this exact request shape). An operator who supplies
-  real credentials via `ISIC5820_MODEL_API_KEY` gets a genuinely wired
-  adapter, but its real-call behavior remains unverified until they do."
+  2026-07-17 update (ADR-2607173300): a real end-to-end call through
+  `real-advisor` to a live model API IS now verified — see
+  `dev/real_advisor_check.clj`, run against the murakumo fleet's
+  `murakumo-main` alias (provider :anthropic, url
+  https://api.murakumo.cloud/v1/messages, currently resolving to
+  qwen3.6-35b-a3b). Both a bad-subject request (opportunity not found,
+  governor correctly HOLDs) and a valid opp-100 transition (model
+  correctly returns a well-formed :stage-transition-upsert proposal,
+  parsed EDN, routed through the SAME actor graph as the mock advisor)
+  were exercised live. Unit tests (`test/crm/llm_realmodel_test.clj`)
+  still only exercise the adapter against a local http-kit stub — that
+  remains the deterministic/CI-safe coverage; `dev/real_advisor_check.clj`
+  is the live-model companion (same pattern as
+  cloud-itonami-isic-6399/dev/real_advisor_check.clj), NOT part of the
+  CI suite (needs a live token)."
   (:require [clojure.string :as str]
             [clojure.data.json :as json]
             [langchain.model :as model]
