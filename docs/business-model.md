@@ -45,7 +45,14 @@ every other actor in this fleet apply to their own domain.
 - Per-seat subscription (mirrors the platform's own product: a CRM
   business licenses seats to its own customers)
 - Certification/audit fee for itonami.cloud operator certification
-- Optional managed-hosting fee for operators who do not self-host
+- Optional managed-hosting fee for operators who do not self-host —
+  **live now**: Managed CRM (Starter), ¥80,000/月 flat, unlimited seats,
+  Stripe-hosted checkout: <https://buy.stripe.com/4gM28q88r4pyaGIdIzbMQ0e>.
+  Price point grounded in the 2026-07-17 five-competitor survey
+  (`pricing-intel-20260717-01`: Salesforce / HubSpot / Pipedrive /
+  Zoho CRM / Dynamics 365 Sales — all per-seat, $14–550/user/mo;
+  recommended band ¥50k–150k/月 flat) — see the superproject's
+  `90-docs/pricing-intelligence/` and ADR-2607172600.
 
 ## Honest scope (R0)
 
