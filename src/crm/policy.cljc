@@ -51,6 +51,21 @@
                                       confidence (this actor's analog of
                                       an SLA-breach-imminent gate).
    10. dispute-request             — never auto-resolves, any phase.
+   11. lead-status-gate            — `:lead/qualify`'s new status must be
+                                      a valid forward step of
+                                      `kotoba.crm.pipeline` over
+                                      `facts/lead-status-order` (same
+                                      no-skip discipline as
+                                      stage-sequence-gate, reused rather
+                                      than reimplemented for a second
+                                      ordered-stage domain).
+   12. lead-convertible-gate       — `:lead/convert` requires the lead be
+                                      exactly `:qualified` AND already
+                                      account-matched (`:account-id` set)
+                                      — the LLM has no authority to decide
+                                      a lead is ready to become a real
+                                      Contact + Opportunity, same
+                                      philosophy as stage-sequence-gate.
 
   `crm.dashboard`'s book-wide pipeline funnel/revenue rollup is gated
   the same way as any other op: a new rbac-only key,
@@ -78,9 +93,9 @@
 (def confidence-floor 0.6)
 
 (def permissions
-  {:rep            #{:opportunity/transition-stage}
+  {:rep            #{:opportunity/transition-stage :lead/qualify :lead/convert}
    :sales-manager  #{:opportunity/transition-stage :dispute/request
-                     :pipeline/dashboard-query}
+                     :pipeline/dashboard-query :lead/qualify :lead/convert}
    :account-holder #{:disclosure/query}})
 
 (def tier-columns
@@ -151,6 +166,35 @@
         [{:rule :source-provenance-gate
           :detail (str "出典が無いか許可された出典クラスでない: " (pr-str src))}]))))
 
+(defn- lead-status-violations
+  [{:keys [op]} proposal st]
+  (when (= op :lead/qualify)
+    (let [{:keys [lead-id to-status]} (:value proposal)
+          ld (store/lead st lead-id)]
+      (when (and ld (not (pipeline/valid-transition?
+                          facts/lead-status-order facts/lead-exit-statuses
+                          (:status ld) to-status)))
+        [{:rule :lead-status-gate
+          :detail (str "lead " lead-id " の現status " (:status ld)
+                       " から " to-status " への遷移は無効(スキップまたは逆行)")}]))))
+
+(defn- lead-convertible-violations
+  [{:keys [op]} proposal st]
+  (when (= op :lead/convert)
+    (let [lead-id (get-in proposal [:value :lead-id])
+          ld (store/lead st lead-id)]
+      (cond
+        (nil? ld)
+        [{:rule :lead-convertible-gate :detail (str "lead が存在しない: " lead-id)}]
+
+        (not (facts/lead-convertible? (:status ld)))
+        [{:rule :lead-convertible-gate
+          :detail (str "lead " lead-id " は status " (:status ld) " — :qualified のみ変換可能")}]
+
+        (nil? (:account-id ld))
+        [{:rule :lead-convertible-gate
+          :detail (str "lead " lead-id " に account-id が未設定 — 変換前に account を紐付けること")}]))))
+
 (defn- licensed-disclosure-violations
   [{:keys [op]} {:keys [account-id]} proposal st]
   (when (= op :disclosure/query)
@@ -186,7 +230,9 @@
                               (double-close-violations request proposal st)
                               (stage-sequence-violations request proposal st)
                               (source-provenance-violations request proposal)
-                              (licensed-disclosure-violations request context proposal st)))
+                              (licensed-disclosure-violations request context proposal st)
+                              (lead-status-violations request proposal st)
+                              (lead-convertible-violations request proposal st)))
         conf         (:confidence proposal 0.0)
         low?         (< conf confidence-floor)
         rev-urgent?  (revenue-mismatch-imminent? st request proposal)

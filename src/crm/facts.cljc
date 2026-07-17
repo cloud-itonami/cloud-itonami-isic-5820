@@ -21,7 +21,16 @@
        entitlement scale; a feature/seat activation must be licensed by
        the account's active subscription tier.
     4. `pipeline-stage-order` / `exit-stages` — the sales pipeline shape,
-       delegated to the shared `kotoba.crm.pipeline` technical commons.")
+       delegated to the shared `kotoba.crm.pipeline` technical commons.
+    5. `lead-status-order` / `lead-exit-statuses` — the lead-qualification
+       lifecycle shape, same `kotoba.crm.pipeline` commons reused for a
+       second ordered-stage domain (its own docstring names 'marketing
+       lifecycle stages' as an intended reuse, not just opportunity
+       stages). Converting a lead into a Contact + Opportunity is a
+       SEPARATE, more restrictive gate than 'is this the next lead
+       status' — see `lead-convertible?` — a lead must be exactly
+       `:qualified`, converting is not itself a pipeline-shaped forward
+       step.")
 
 (def allowed-source-classes
   #{:crm-activity-log :e-signature-system :billing-system-webhook})
@@ -51,6 +60,18 @@
 
 (def exit-stages #{:closed-lost})
 
+(def lead-status-order
+  "Ordered lead-qualification lifecycle, low to high. `:qualified` is the
+  terminal ordered stage — `:converted` is reached only via
+  `lead-convertible?`'s dedicated gate, never as a `pipeline`-shaped
+  forward step (see namespace docstring point 5)."
+  [:new :working :qualified])
+
+(def lead-exit-statuses
+  "Reachable from any non-terminal lead status, same escape-hatch shape
+  as `exit-stages`."
+  #{:disqualified})
+
 (def ^:private discount-rank
   (into {} (map-indexed (fn [i t] [t i])) discount-authority-tiers))
 
@@ -76,6 +97,16 @@
   [account-tier feature]
   (contains? (get feature-catalog account-tier #{}) feature))
 
+(defn lead-convertible?
+  "True iff `lead-status` may be converted into a Contact + Opportunity.
+  Deliberately narrower than 'is this a valid forward lead-status step':
+  only the single terminal ordered status `:qualified` converts — a
+  `:new` or `:working` lead skipping straight to a won deal is exactly
+  the kind of unauthorized-skip this fleet's stage-sequence gates exist
+  to block."
+  [lead-status]
+  (= lead-status :qualified))
+
 (defn coverage
   "Honest, machine-checkable report of what R0 actually covers."
   []
@@ -83,12 +114,15 @@
    :discount-authority-tier-count (count discount-authority-tiers)
    :subscription-feature-tier-count (count subscription-feature-tiers)
    :pipeline-stage-count (count pipeline-stage-order)
+   :lead-status-count (count lead-status-order)
    :note (str "R0 scope: 3 provenance classes, "
               (count discount-authority-tiers)
               "-level discount-authority scale, "
               (count subscription-feature-tiers)
               "-level subscription feature-tier scale, "
               (count pipeline-stage-order)
-              "-stage linear sales pipeline plus 1 exit stage. "
+              "-stage linear sales pipeline plus 1 exit stage, "
+              (count lead-status-order)
+              "-status lead-qualification lifecycle plus 1 exit status. "
               "Extend only by appending a documented provenance class, "
-              "authority tier, or feature — never fabricate either.")})
+              "authority tier, feature, or status — never fabricate any.")})

@@ -124,6 +124,57 @@
         (is (= :closed-won (:stage (store/opportunity db "opp-300"))))
         (is (true? (:closed? (store/opportunity db "opp-300"))))))))
 
+(deftest lead-qualify-authorized-commits
+  (testing "a valid forward lead-status step (new → working) commits"
+    (let [[db actor] (fresh)
+          res (exec-op actor "t11"
+                    {:op :lead/qualify :subject "lead-100" :lead-id "lead-100" :to-status :working}
+                    rep)]
+      (is (= :commit (get-in res [:state :disposition])))
+      (is (= :working (:status (store/lead db "lead-100")))))))
+
+(deftest lead-status-skip-is-held
+  (testing "skipping ahead in the lead lifecycle (new straight to qualified) → HOLD"
+    (let [[db actor] (fresh)
+          res (exec-op actor "t12"
+                    {:op :lead/qualify :subject "lead-100" :lead-id "lead-100" :to-status :qualified}
+                    rep)]
+      (is (= :hold (get-in res [:state :disposition])))
+      (is (some #{:lead-status-gate} (-> (store/ledger db) first :basis)))
+      (is (= :new (:status (store/lead db "lead-100")))))))
+
+(deftest unqualified-lead-convert-is-held
+  (testing "converting a lead that is not yet :qualified → HOLD, no Contact/Opportunity minted"
+    (let [[db actor] (fresh)
+          res (exec-op actor "t13"
+                    {:op :lead/convert :subject "lead-100" :lead-id "lead-100"}
+                    rep)]
+      (is (= :hold (get-in res [:state :disposition])))
+      (is (some #{:lead-convertible-gate} (-> (store/ledger db) first :basis)))
+      (is (empty? (store/all-contacts db))))))
+
+(deftest qualified-lead-convert-escalates-then-mints-contact-and-opportunity-on-approval
+  (testing ":lead/convert never auto-commits (phase.cljc: it mints new records, always approval-gated) — a governor-clean, :qualified, account-matched lead escalates, then commits and mints on human approval"
+    (let [[db actor] (fresh)
+          before-opps (count (store/all-opportunities db))
+          r1 (exec-op actor "t14"
+                   {:op :lead/convert :subject "lead-200" :lead-id "lead-200"}
+                   rep)]
+      (is (= :interrupted (:status r1)))
+      (is (= :phase-approval (-> r1 :state :audit last :reason)))
+      (is (empty? (store/all-contacts db)) "nothing minted before approval")
+      (let [r2 (g/run* actor {:approval {:status :approved :by "manager-1"}}
+                       {:thread-id "t14" :resume? true})
+            ld (store/lead db "lead-200")]
+        (is (= :commit (get-in r2 [:state :disposition])))
+        (is (= :converted (:status ld)))
+        (is (= 1 (count (store/all-contacts db))))
+        (is (= "acct-acme" (:account-id (first (store/all-contacts db))))
+            "the new Contact inherits the lead's already-matched account-id")
+        (is (= (inc before-opps) (count (store/all-opportunities db))))
+        (is (= :prospecting (:stage (store/opportunity db (:converted-to-opportunity-id ld))))
+            "a freshly-converted opportunity always starts at the first pipeline stage")))))
+
 (deftest dispute-request-always-escalates-regardless-of-confidence
   (let [[_db actor] (fresh)
         r1 (exec-op actor "t10"

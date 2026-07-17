@@ -63,6 +63,38 @@
      :columns   (if greedy? (into base greedy-extra) base)
      :confidence 0.9}))
 
+(defn- propose-lead-qualify
+  "Lead-status-advance proposal — same normalization-only discipline as
+  `propose-transition`: the LLM proposes the next status, `crm.policy`'s
+  lead-status-gate (reusing `kotoba.crm.pipeline`) is the sole judge of
+  whether that step is a valid forward move."
+  [_db {:keys [lead-id to-status]}]
+  {:summary   (str "lead status advance: " lead-id " → " to-status)
+   :rationale "lead データの正規化のみ。status 遷移順序の妥当性判断なし。"
+   :cites     [:lead-id :to-status]
+   :source    nil
+   :effect    :lead-status-upsert
+   :value     {:lead-id lead-id :to-status to-status}
+   :confidence 0.9})
+
+(defn- propose-lead-convert
+  "Lead → Contact + Opportunity conversion draft. The LLM only drafts the
+  new Contact/Opportunity shape from the lead's own fields — whether the
+  lead is actually `:qualified` and account-matched is
+  `crm.policy`'s lead-convertible-gate's call, never this advisor's."
+  [db {:keys [lead-id]}]
+  (let [ld (store/lead db lead-id)]
+    {:summary   (str "lead convert: " lead-id " → new Contact + Opportunity")
+     :rationale "lead の name/email/company から Contact・初期 Opportunity を起票する提案のみ。変換可否の判定なし。"
+     :cites     [:lead-id]
+     :source    nil
+     :effect    :lead-convert-upsert
+     :value     {:lead-id lead-id
+                 :contact {:id (str "contact-" lead-id) :name (:name ld) :email (:email ld)
+                           :role "primary"}
+                 :opportunity {:id (str "opp-" lead-id) :amount 0.0}}
+     :confidence 0.85}))
+
 (defn- propose-dispute
   "Dispute/reassignment draft. NEVER auto-applies — `crm.policy` and
   `crm.phase` both structurally force every `:dispute/request` to human
@@ -82,6 +114,8 @@
     :opportunity/transition-stage (propose-transition db request)
     :disclosure/query             (propose-disclosure db request)
     :dispute/request              (propose-dispute db request)
+    :lead/qualify                 (propose-lead-qualify db request)
+    :lead/convert                 (propose-lead-convert db request)
     {:summary "未対応の操作" :rationale (str op) :cites [] :source nil
      :effect :noop :confidence 0.0}))
 
@@ -98,15 +132,18 @@
        "RevOpsアドバイザーです。与えられた事実のみに基づき、提案を1つだけ "
        "EDN マップで返します。説明や前置きは一切書かず、EDN だけを出力します。\n"
        "キー: :summary :rationale :cites :source({:class .. :ref ..}か nil) "
-       ":effect(:stage-transition-upsert|:disclosure-serve|:correction-apply) "
+       ":effect(:stage-transition-upsert|:disclosure-serve|:correction-apply|"
+       ":lead-status-upsert|:lead-convert-upsert) "
        ":value :confidence(0..1)。\n"
        "重要: 割引承認権限の妥当性判断、機能/シート entitlement の妥当性判断、"
-       "パイプライン stage 遷移順序の妥当性判断はあなたの責務ではありません"
+       "パイプライン stage 遷移順序の妥当性判断、lead status 遷移順序の妥当性判断、"
+       "lead が変換可能かどうかの判断はあなたの責務ではありません"
        "(governor が判定します)。"))
 
-(defn- facts-for [st {:keys [op subject opportunity-id account-id]}]
+(defn- facts-for [st {:keys [op subject opportunity-id account-id lead-id]}]
   (case op
     :disclosure/query {:account (store/account st (or account-id subject))}
+    (:lead/qualify :lead/convert) {:lead (store/lead st (or lead-id subject))}
     {:opportunity (store/opportunity st (or opportunity-id subject))}))
 
 (defn- parse-proposal

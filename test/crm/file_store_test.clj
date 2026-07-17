@@ -71,6 +71,22 @@
       (testing "unmodified fields also carried over"
         (is (= :tier/rep (:discount-tier (store/rep s2 "rep-100"))))))))
 
+(deftest lead-convert-persists-and-is-visible-to-a-fresh-instance
+  (let [path (temp-path)
+        s1 (file-store/file-store! path)]
+    (store/commit-record! s1 {:effect :lead-convert-upsert
+                              :value {:lead-id "lead-200"
+                                      :contact {:id "contact-lead-200" :name "Sam Okafor (demo)"
+                                                :email "sam@acme.example" :role "primary"}
+                                      :opportunity {:id "opp-lead-200" :amount 0.0}}})
+    (let [s2 (file-store/file-store! path)]
+      (testing "converted lead status persisted"
+        (is (= :converted (:status (store/lead s2 "lead-200")))))
+      (testing "minted Contact persisted"
+        (is (= "Sam Okafor (demo)" (:name (store/contact s2 "contact-lead-200")))))
+      (testing "minted Opportunity persisted"
+        (is (= :prospecting (:stage (store/opportunity s2 "opp-lead-200"))))))))
+
 (deftest with-accounts-persists-and-is-visible-to-a-fresh-instance
   (let [path (temp-path)
         s1 (file-store/file-store! path)]

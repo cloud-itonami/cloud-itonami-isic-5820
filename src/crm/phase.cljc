@@ -7,31 +7,40 @@
     Phase 0  read-only          — no writes at all. `:disclosure/query`
                                   and `:pipeline/dashboard-query` only
                                   (both still governor-gated).
-    Phase 1  assisted-transition — `:opportunity/transition-stage`
-                                  allowed, every transition needs human
+    Phase 1  assisted-transition — `:opportunity/transition-stage`,
+                                  `:lead/qualify`, `:lead/convert` all
+                                  allowed, every write needs human
                                   approval.
     Phase 2  + dispute          — adds `:dispute/request` (still
                                   approval-only).
     Phase 3  supervised auto    — governor-clean, high-confidence
-                                  `:opportunity/transition-stage` may
-                                  auto-commit.
+                                  `:opportunity/transition-stage` and
+                                  `:lead/qualify` may auto-commit.
 
   `:dispute/request` is deliberately NEVER a member of any phase's
-  `:auto` set, at any phase."
+  `:auto` set, at any phase. `:lead/convert` is the same deliberate
+  choice for the same reason: it doesn't just move a status, it MINTS
+  new Contact + Opportunity records — a bigger, less-reversible action
+  than a routine status advance, so it stays approval-gated even at
+  phase 3."
   )
 
 (def read-ops  #{:disclosure/query :pipeline/dashboard-query})
-(def write-ops #{:opportunity/transition-stage :dispute/request})
+(def write-ops #{:opportunity/transition-stage :dispute/request
+                 :lead/qualify :lead/convert})
 
 (def phases
   {0 {:label "read-only"           :writes #{}
                                     :auto #{}}
-   1 {:label "assisted-transition" :writes #{:opportunity/transition-stage}
+   1 {:label "assisted-transition" :writes #{:opportunity/transition-stage
+                                             :lead/qualify :lead/convert}
                                     :auto #{}}
-   2 {:label "assisted-dispute"    :writes #{:opportunity/transition-stage :dispute/request}
+   2 {:label "assisted-dispute"    :writes #{:opportunity/transition-stage :dispute/request
+                                             :lead/qualify :lead/convert}
                                     :auto #{}}
-   3 {:label "supervised-auto"     :writes #{:opportunity/transition-stage :dispute/request}
-                                    :auto #{:opportunity/transition-stage}}})
+   3 {:label "supervised-auto"     :writes #{:opportunity/transition-stage :dispute/request
+                                             :lead/qualify :lead/convert}
+                                    :auto #{:opportunity/transition-stage :lead/qualify}}})
 
 (def default-phase
   "The phase used when `context` carries no :phase at all. This is

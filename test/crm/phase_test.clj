@@ -18,6 +18,12 @@
 (def dispute-req
   {:op :dispute/request :subject "opp-100" :disputed-field :stage :claim :qualification})
 
+(def clean-lead-qualify
+  {:op :lead/qualify :subject "lead-100" :lead-id "lead-100" :to-status :working})
+
+(def lead-convert-req
+  {:op :lead/convert :subject "lead-200" :lead-id "lead-200"})
+
 (defn- run [phase req ctx]
   (let [s (store/seed-db)
         actor (op/build s)]
@@ -56,3 +62,24 @@
     (let [[_ res] (run ph dispute-req manager)]
       (is (not= :commit (get-in res [:state :disposition]))
           (str "phase " ph " must not auto-commit a dispute")))))
+
+(deftest phase0-holds-lead-writes
+  (let [[s res] (run 0 clean-lead-qualify rep)]
+    (is (= :hold (get-in res [:state :disposition])))
+    (is (= :phase-disabled (-> (store/ledger s) first :phase-reason)))))
+
+(deftest phase1-forces-approval-on-clean-lead-qualify
+  (let [[_ res] (run 1 clean-lead-qualify rep)]
+    (is (= :interrupted (:status res)))
+    (is (= :phase-approval (-> res :state :audit last :reason)))))
+
+(deftest phase3-auto-commits-clean-lead-qualify
+  (let [[s res] (run 3 clean-lead-qualify rep)]
+    (is (= :commit (get-in res [:state :disposition])))
+    (is (= :working (:status (store/lead s "lead-100"))))))
+
+(deftest lead-convert-never-auto-commits-at-any-phase
+  (doseq [ph [0 1 2 3]]
+    (let [[_ res] (run ph lead-convert-req rep)]
+      (is (not= :commit (get-in res [:state :disposition]))
+          (str "phase " ph " must not auto-commit a lead conversion — it mints new records")))))

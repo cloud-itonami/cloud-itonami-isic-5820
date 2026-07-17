@@ -38,4 +38,12 @@
     (is (= 3 (count (:source-classes c))) "3 provenance classes")
     (is (= 3 (:discount-authority-tier-count c)))
     (is (= 3 (:subscription-feature-tier-count c)))
-    (is (= 5 (:pipeline-stage-count c)))))
+    (is (= 5 (:pipeline-stage-count c)))
+    (is (= 3 (:lead-status-count c)))))
+
+(deftest lead-convertible?-only-true-for-qualified
+  (is (facts/lead-convertible? :qualified))
+  (is (not (facts/lead-convertible? :new)))
+  (is (not (facts/lead-convertible? :working)))
+  (is (not (facts/lead-convertible? :disqualified)))
+  (is (not (facts/lead-convertible? :converted))))
