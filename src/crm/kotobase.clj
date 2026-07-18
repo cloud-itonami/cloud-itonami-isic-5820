@@ -181,7 +181,18 @@
 
   Throws if no seed is available (fail-closed — this Store must never
   silently fall back to an unauthenticated or misconfigured connection).
-  Does NOT seed demo data (see `crm.store/store-with-api`)."
+  Does NOT seed demo data (see `crm.store/store-with-api`).
+
+  A fresh CACAO is minted for EVERY `:transact!` call, not once at
+  construction time and reused: kotobase-server's nonce-replay protection
+  (`kotobase_cf_wasm.auth/nonce-seen?`) rejects a second `datomic.transact`
+  presenting the same CACAO's nonce (`\"CACAO nonce already used\"`, 401) —
+  confirmed directly, 2026-07-18: a Store built with one static CACAO
+  succeeded on its first write and 401'd on its second. Reads (`:q`/
+  `:pull`/`:entid`) are unauthenticated on the live edge (any graph-CID
+  holder can read — see `kotobase.proxy/scope-tenant-read`'s docstring),
+  so they reuse a single conn/CACAO safely; only the write path needs a
+  fresh mint per call."
   [{:keys [url seed-hex db-name json-write json-read http-fn cap ttl-sec]
     :or {url "https://kotobase.net" db-name default-db-name}}]
   (let [seed-hex (or seed-hex (load-seed-hex))
@@ -189,9 +200,19 @@
             (throw (ex-info "crm.kotobase/kotobase-store: no seed — set $ISIC5820_KOTOBASE_SEED_HEX (kagi get cloud-itonami-isic-5820-kotobase-seed)"
                             {})))
         id (identity-from-seed-hex seed-hex db-name)
-        cacao-b64 (mint-cacao id url {:cap (or cap :cap/transact) :ttl-sec (or ttl-sec 3600)})
         host-caps {:http-fn (or http-fn jvm-http-fn)
                    :json-write json-write :json-read json-read}
-        api (kdb/kotoba-api host-caps)
-        conn (kdb/kotoba-conn* url db-name {:cacao cacao-b64 :did (:did id) :graph (:graph id)})]
-    (store/store-with-api api conn)))
+        raw-api (kdb/kotoba-api host-caps)
+        write-conn! (fn []
+                      (kdb/kotoba-conn* url db-name
+                                        {:cacao (mint-cacao id url {:cap :cap/transact :ttl-sec (or ttl-sec 3600)})
+                                         :did (:did id) :graph (:graph id)}))
+        read-conn (kdb/kotoba-conn* url db-name
+                                    {:cacao (mint-cacao id url {:cap (or cap :cap/read) :ttl-sec (or ttl-sec 3600)})
+                                     :did (:did id) :graph (:graph id)})
+        api {:transact! (fn [_conn tx-data] ((:transact! raw-api) (write-conn!) tx-data))
+             :db identity
+             :q (fn [query _conn & inputs] (apply (:q raw-api) query read-conn inputs))
+             :pull (fn [_conn pattern eid] ((:pull raw-api) read-conn pattern eid))
+             :entid (fn [_conn eid] ((:entid raw-api) read-conn eid))}]
+    (store/store-with-api api read-conn)))

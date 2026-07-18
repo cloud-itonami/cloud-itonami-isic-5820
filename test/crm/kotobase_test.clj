@@ -110,3 +110,30 @@
       (let [body (read-string (:body (first @captured)))]
         (is (= "test-db" (:db_name body)))
         (is (string? (:cacao_b64 body)))))))
+
+(deftest kotobase-store-mints-a-fresh-cacao-for-every-write
+  (testing "kotobase-server's nonce-replay protection rejects a second
+           datomic.transact presenting the same CACAO's nonce -- a Store
+           reusing one static CACAO across multiple writes would 401 on
+           the second write. Confirmed directly against the live edge,
+           2026-07-18."
+    (let [captured (atom [])
+          http-fn (mock-http-fn captured
+                                (fn [nsid _body]
+                                  (case nsid
+                                    "ai.gftd.apps.kotobase.datomic.transact"
+                                    (pr-str {:ok true :graph "g" :commit "c" :datom_count 1})
+                                    (pr-str {:ok true :graph "g" :rows_edn []}))))
+          s (kb/kotobase-store {:seed-hex test-seed-hex :db-name "test-db"
+                                :json-write pr-str :json-read read-string
+                                :http-fn http-fn})]
+      (store/with-reps s {"r1" {:id "r1" :name "Rep One" :discount-tier :tier/rep}})
+      (store/with-accounts s {"a1" {:id "a1" :name "Account One" :subscription-tier :tier/basic :active? true}})
+      (let [transacts (filter #(= "ai.gftd.apps.kotobase.datomic.transact" (:nsid %)) @captured)
+            ;; :body is the raw wire string (pr-str'd, matching the
+            ;; :json-write pr-str passed to kotobase-store above) --
+            ;; must be parsed back before :cacao_b64 is reachable.
+            cacaos (map #(:cacao_b64 (read-string (:body %))) transacts)]
+        (is (= 2 (count transacts)))
+        (is (every? string? cacaos))
+        (is (= 2 (count (distinct cacaos))))))))
