@@ -15,11 +15,24 @@
 
   Entity shapes: a rep (discount-tier), an account (subscription-tier,
   active?), an opportunity (account/stage/amount/closed?), a subscription
-  (account's SaaS entitlement: product-tier/contract-value/term/start).
-  There is NO field anywhere in this schema for marketing-campaign
-  attribution or support-ticket SLA — this actor covers sales-pipeline +
-  subscription-entitlement governance only; marketing-automation and
-  customer-service are explicitly out of scope for R0 (see README).
+  (account's SaaS entitlement: product-tier/contract-value/term/start), a
+  lead (pre-opportunity capture: status/account-id/owner-rep-id) and a
+  contact (a person at an account). There is NO field anywhere in this
+  schema for marketing-campaign attribution or support-ticket SLA — this
+  actor covers sales-pipeline + subscription-entitlement governance only;
+  marketing-automation and customer-service are explicitly out of scope
+  for R0 (see README).
+
+  Account `:id` convention (ADR-2607182200): a demo/purely-local account
+  uses an ad-hoc id (`\"acct-acme\"`); an account for a REAL company
+  imported via `crm.dossier-import/dossier-company->account` from
+  `cloud-itonami-isic-8291`'s (\"dossier\") canonical business-entity
+  registry keeps dossier's own id verbatim (`\"jpn-<corporateNumber>\"`,
+  `\"gbr-<company_number>\"`, ...) — the DUNS-Number-analog design this
+  fleet settled on: one shared identifier across every actor that
+  references the same real-world company, not an ad-hoc local one per
+  actor. `crm.store` itself has no dependency on `dossier.*` code at all
+  — this is purely an id-string convention `dossier-import` observes.
 
   The ledger stays append-only on every backend."
   (:require #?(:clj  [clojure.edn :as edn]
