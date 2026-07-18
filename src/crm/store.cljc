@@ -262,50 +262,50 @@
 (def ^:private contact-pull
   [:contact/id :contact/account-id :contact/name :contact/email :contact/role :contact/lead-id])
 
-(defrecord DatomicStore [conn]
+(defrecord DatomicStore [conn db-api]
   Store
-  (rep [_ id] (pull->rep (d/pull (d/db conn) rep-pull [:rep/id id])))
+  (rep [_ id] (pull->rep ((:pull db-api) ((:db db-api) conn) rep-pull [:rep/id id])))
   (all-reps [_]
-    (->> (d/q '[:find [?id ...] :where [?e :rep/id ?id]] (d/db conn))
-         (map #(pull->rep (d/pull (d/db conn) rep-pull [:rep/id %])))
+    (->> ((:q db-api) '[:find [?id ...] :where [?e :rep/id ?id]] ((:db db-api) conn))
+         (map #(pull->rep ((:pull db-api) ((:db db-api) conn) rep-pull [:rep/id %])))
          (sort-by :id)))
-  (account [_ id] (pull->account (d/pull (d/db conn) account-pull [:account/id id])))
+  (account [_ id] (pull->account ((:pull db-api) ((:db db-api) conn) account-pull [:account/id id])))
   (all-accounts [_]
-    (->> (d/q '[:find [?id ...] :where [?e :account/id ?id]] (d/db conn))
-         (map #(pull->account (d/pull (d/db conn) account-pull [:account/id %])))
+    (->> ((:q db-api) '[:find [?id ...] :where [?e :account/id ?id]] ((:db db-api) conn))
+         (map #(pull->account ((:pull db-api) ((:db db-api) conn) account-pull [:account/id %])))
          (sort-by :id)))
-  (opportunity [_ id] (pull->opportunity (d/pull (d/db conn) opportunity-pull [:opportunity/id id])))
+  (opportunity [_ id] (pull->opportunity ((:pull db-api) ((:db db-api) conn) opportunity-pull [:opportunity/id id])))
   (all-opportunities [_]
-    (->> (d/q '[:find [?id ...] :where [?e :opportunity/id ?id]] (d/db conn))
-         (map #(pull->opportunity (d/pull (d/db conn) opportunity-pull [:opportunity/id %])))
+    (->> ((:q db-api) '[:find [?id ...] :where [?e :opportunity/id ?id]] ((:db db-api) conn))
+         (map #(pull->opportunity ((:pull db-api) ((:db db-api) conn) opportunity-pull [:opportunity/id %])))
          (sort-by :id)))
   (subscription [_ account-id]
-    (pull->subscription (d/pull (d/db conn) subscription-pull [:subscription/account-id account-id])))
-  (lead [_ id] (pull->lead (d/pull (d/db conn) lead-pull [:lead/id id])))
+    (pull->subscription ((:pull db-api) ((:db db-api) conn) subscription-pull [:subscription/account-id account-id])))
+  (lead [_ id] (pull->lead ((:pull db-api) ((:db db-api) conn) lead-pull [:lead/id id])))
   (all-leads [_]
-    (->> (d/q '[:find [?id ...] :where [?e :lead/id ?id]] (d/db conn))
-         (map #(pull->lead (d/pull (d/db conn) lead-pull [:lead/id %])))
+    (->> ((:q db-api) '[:find [?id ...] :where [?e :lead/id ?id]] ((:db db-api) conn))
+         (map #(pull->lead ((:pull db-api) ((:db db-api) conn) lead-pull [:lead/id %])))
          (sort-by :id)))
-  (contact [_ id] (pull->contact (d/pull (d/db conn) contact-pull [:contact/id id])))
+  (contact [_ id] (pull->contact ((:pull db-api) ((:db db-api) conn) contact-pull [:contact/id id])))
   (all-contacts [_]
-    (->> (d/q '[:find [?id ...] :where [?e :contact/id ?id]] (d/db conn))
-         (map #(pull->contact (d/pull (d/db conn) contact-pull [:contact/id %])))
+    (->> ((:q db-api) '[:find [?id ...] :where [?e :contact/id ?id]] ((:db db-api) conn))
+         (map #(pull->contact ((:pull db-api) ((:db db-api) conn) contact-pull [:contact/id %])))
          (sort-by :id)))
   (ledger [_]
-    (->> (d/q '[:find ?s ?f :where [?e :ledger/seq ?s] [?e :ledger/fact ?f]] (d/db conn))
+    (->> ((:q db-api) '[:find ?s ?f :where [?e :ledger/seq ?s] [?e :ledger/fact ?f]] ((:db db-api) conn))
          (sort-by first)
          (mapv (comp dec* second))))
   (commit-record! [s {:keys [effect path value]}]
     (case effect
       :stage-transition-upsert
-      (d/transact! conn [(opportunity->tx (merge (opportunity s (:opportunity-id value))
-                                                  {:stage (:to-stage value)
-                                                   :discount-pct (:discount-pct value 0)
-                                                   :closed? (boolean (:closed? value))}))])
+      ((:transact! db-api) conn [(opportunity->tx (merge (opportunity s (:opportunity-id value))
+                                                          {:stage (:to-stage value)
+                                                           :discount-pct (:discount-pct value 0)
+                                                           :closed? (boolean (:closed? value))}))])
       :correction-apply
-      (d/transact! conn [(opportunity->tx (merge (opportunity s (first path)) (:patch value)))])
+      ((:transact! db-api) conn [(opportunity->tx (merge (opportunity s (first path)) (:patch value)))])
       :lead-status-upsert
-      (d/transact! conn [(lead->tx (merge (lead s (:lead-id value)) {:status (:to-status value)}))])
+      ((:transact! db-api) conn [(lead->tx (merge (lead s (:lead-id value)) {:status (:to-status value)}))])
       :lead-convert-upsert
       (let [{:keys [lead-id contact-rec opportunity-rec]}
             {:lead-id (:lead-id value)
@@ -314,37 +314,55 @@
              :opportunity-rec (assoc (:opportunity value)
                                      :account-id (:account-id (lead s (:lead-id value)))
                                      :stage :prospecting :discount-pct 0 :closed? false)}]
-        (d/transact! conn [(lead->tx (merge (lead s lead-id)
-                                            {:status :converted
-                                             :converted-to-contact-id (:id contact-rec)
-                                             :converted-to-opportunity-id (:id opportunity-rec)}))
-                           (contact->tx contact-rec)
-                           (opportunity->tx opportunity-rec)]))
+        ((:transact! db-api) conn [(lead->tx (merge (lead s lead-id)
+                                                     {:status :converted
+                                                      :converted-to-contact-id (:id contact-rec)
+                                                      :converted-to-opportunity-id (:id opportunity-rec)}))
+                                   (contact->tx contact-rec)
+                                   (opportunity->tx opportunity-rec)]))
       nil)
     s)
   (append-ledger! [s fact]
-    (d/transact! conn [{:ledger/seq (count (ledger s)) :ledger/fact (enc fact)}])
+    ((:transact! db-api) conn [{:ledger/seq (count (ledger s)) :ledger/fact (enc fact)}])
     fact)
   (with-reps [s rs]
-    (when (seq rs) (d/transact! conn (mapv rep->tx (vals rs)))) s)
+    (when (seq rs) ((:transact! db-api) conn (mapv rep->tx (vals rs)))) s)
   (with-accounts [s accts]
-    (when (seq accts) (d/transact! conn (mapv account->tx (vals accts)))) s)
+    (when (seq accts) ((:transact! db-api) conn (mapv account->tx (vals accts)))) s)
   (with-leads [s ls]
-    (when (seq ls) (d/transact! conn (mapv lead->tx (vals ls)))) s)
+    (when (seq ls) ((:transact! db-api) conn (mapv lead->tx (vals ls)))) s)
   (with-contacts [s cs]
-    (when (seq cs) (d/transact! conn (mapv contact->tx (vals cs)))) s)
+    (when (seq cs) ((:transact! db-api) conn (mapv contact->tx (vals cs)))) s)
   (with-opportunities [s ops]
-    (when (seq ops) (d/transact! conn (mapv opportunity->tx (vals ops)))) s)
+    (when (seq ops) ((:transact! db-api) conn (mapv opportunity->tx (vals ops)))) s)
   (with-subscriptions [s subs]
-    (when (seq subs) (d/transact! conn (mapv subscription->tx (vals subs)))) s))
+    (when (seq subs) ((:transact! db-api) conn (mapv subscription->tx (vals subs)))) s))
 
 (defn datomic-store
+  "The in-process default: `DatomicStore` backed by `langchain.db/api` +
+  `langchain.db/create-conn` (a plain atom — no connection URI, not durable
+  across a process restart; see `crm.file-store`'s docstring)."
   ([] (datomic-store {}))
   ([{:keys [reps accounts opportunities subscriptions leads contacts]}]
-   (let [s (->DatomicStore (d/create-conn schema))]
+   (let [s (->DatomicStore (d/create-conn schema) d/api)]
      (-> s (with-reps reps) (with-accounts accounts)
          (with-opportunities opportunities) (with-subscriptions subscriptions)
          (with-leads leads) (with-contacts contacts)))))
+
+(defn store-with-api
+  "`DatomicStore` backed by an INJECTED `db-api` map ({:q :transact! :db
+  :pull :entid} — `langchain.db/api`'s own shape) + a matching `conn`,
+  instead of hardcoding `langchain.db`/`langchain.db/create-conn`. This is
+  what makes the actor's opportunity/account/subscription/ledger/lead/
+  contact data able to live somewhere OTHER than an in-process atom — e.g.
+  `langchain.kotoba-db/kotoba-api` + a `kotoba-conn*` pointed at a live
+  kotobase-server graph (see `crm.kotobase/kotobase-store`), so the same
+  `Store` protocol, the same SubscriptionGovernor, the same audit-ledger
+  discipline run unchanged against a real remote graph. Does NOT seed demo
+  data — an existing tenant graph's real data stays real; call
+  `with-reps`/`with-accounts`/etc. explicitly if a fresh graph needs seeding."
+  [db-api conn]
+  (->DatomicStore conn db-api))
 
 (defn datomic-seed-db
   "A DatomicStore seeded with the demo data — proves protocol parity."
