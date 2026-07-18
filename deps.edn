@@ -3,11 +3,37 @@
         {:local/root "../../kotoba-lang/langgraph"}
         io.github.kotoba-lang/crm
         {:local/root "../../kotoba-lang/crm"}
+        ;; Explicit top-level :local/root (NOT left to :dev's override-
+        ;; deps alone): langgraph's own deps.edn pins langchain to a git
+        ;; SHA, and tools.deps resolves the SHALLOWEST declaration for a
+        ;; given lib -- crm.kotobase (src/crm/kotobase.clj) needs
+        ;; langchain.kotoba-db's live fixes (this session's :q/:pull/
+        ;; :entid wire-format corrections), so a plain `clojure -M:serve`
+        ;; (no :dev) must not silently fall back to the stale git-pinned
+        ;; copy. Confirmed this was happening, 2026-07-18: `clojure -M
+        ;; <script requiring crm.kotobase>` without :dev loaded the old
+        ;; kotoba_db.cljc (a println added directly inside its :pull impl
+        ;; never printed), even though the local `orgs/kotoba-lang/
+        ;; langchain` checkout already had the fix.
+        io.github.kotoba-lang/langchain
+        {:local/root "../../kotoba-lang/langchain"}
         ;; HTTP service layer (src/crm/http.clj, JVM-only compat glue —
         ;; see its ns docstring for why this is not a .cljc violation).
         http-kit/http-kit        {:mvn/version "2.8.1"}
         ring/ring-core           {:mvn/version "1.15.3"}
-        org.clojure/data.json    {:mvn/version "2.5.2"}}
+        org.clojure/data.json    {:mvn/version "2.5.2"}
+        ;; kotobase.net Store backend (src/crm/kotobase.clj): self-sovereign
+        ;; CACAO mint (this actor's own Ed25519 key, never a handed token) —
+        ;; same pattern as com-etzhayyim-tsumugu's tsumugu.cacao/tsumugu.kotoba
+        ;; (CLAUDE.md "kotoba-server (kotobase.net) = actor が自分の鍵で CACAO
+        ;; を自己発行"). :local/root during monorepo dev, git dep for a clean
+        ;; clone (mirrors org-chainagnostic-cacao's own :local vs default split).
+        io.github.kotoba-lang/org-chainagnostic-cacao
+        {:local/root "../../kotoba-lang/org-chainagnostic-cacao"}
+        io.github.kotoba-lang/org-ietf-ed25519
+        {:local/root "../../kotoba-lang/org-ietf-ed25519"}
+        io.github.kotoba-lang/org-ietf-cbor
+        {:local/root "../../kotoba-lang/org-ietf-cbor"}}
  :aliases
  {:dev {:override-deps
         {io.github.kotoba-lang/langchain
