@@ -134,6 +134,71 @@
       (is (= "held" (:decision json)))
       (is (some #(= "discount-authority-gate" (:rule %)) (:violations json))))))
 
+;; ───────────────────────── /approve (escalation resume) ─────────────────────────
+
+;; op7 from crm.sim: a dispute/request ALWAYS escalates for human review
+;; (any phase), making it the deterministic case to exercise the
+;; /propose -> 202 escalated -> /approve resume round-trip end-to-end.
+;; Uses the same manager context crm.sim's op7 uses.
+(def ^:private op7-dispute-body
+  (json/write-str
+   {:op "dispute/request" :subject "opp-100" :disputed-field "stage" :claim "qualification"
+    :context {:actor-id "mg-1" :actor-role "sales-manager" :phase 3}}))
+
+(deftest propose-dispute-escalates-with-thread-id
+  (testing "op7 dispute/request -> 202 escalated with a thread-id (precondition for /approve)"
+    (let [{:keys [status json]} (json-req! :post "/propose" {:body op7-dispute-body} test-token)]
+      (is (= 202 status))
+      (is (= "escalated" (:decision json)))
+      (is (string? (:thread-id json)))
+      (is (= "dispute/request" (:op json))))))
+
+(deftest approve-resumes-an-escalated-thread-to-a-final-disposition
+  (testing "POST /approve with the escalated thread-id resumes the graph to :done"
+    (let [{prop-json :json} (json-req! :post "/propose" {:body op7-dispute-body} test-token)
+          thread-id (:thread-id prop-json)]
+      (is (string? thread-id))
+      (let [{:keys [status json]}
+            (json-req! :post "/approve"
+                       {:body (json/write-str {:thread-id thread-id
+                                                :decision  "approve"
+                                                :by        "test-approver"})}
+                       test-token)]
+        (is (= 200 status))
+        (is (contains? #{"committed" "held"} (:decision json)))
+        (is (= thread-id (:thread-id json)))
+        (is (= "approved" (:approval json)))))))
+
+(deftest reject-resumes-an-escalated-thread-to-held
+  (testing "POST /approve with decision \"reject\" -> governor holds"
+    (let [{prop-json :json} (json-req! :post "/propose" {:body op7-dispute-body} test-token)
+          thread-id (:thread-id prop-json)]
+      (is (string? thread-id))
+      (let [{:keys [status json]}
+            (json-req! :post "/approve"
+                       {:body (json/write-str {:thread-id thread-id :decision "reject"})}
+                       test-token)]
+        (is (= 200 status))
+        (is (= "held" (:decision json)))
+        (is (= "rejected" (:approval json)))))))
+
+(deftest approve-rejects-malformed-bodies
+  (testing "decision must be approve|reject; thread-id must be present"
+    (let [{s1 :status} (json-req! :post "/approve"
+                                  {:body (json/write-str {:thread-id "x" :decision "maybe"})}
+                                  test-token)]
+      (is (= 400 s1)))
+    (let [{s2 :status} (json-req! :post "/approve"
+                                  {:body (json/write-str {:decision "approve"})}
+                                  test-token)]
+      (is (= 400 s2)))))
+
+(deftest approve-without-auth-token-is-unauthorized
+  (let [{:keys [status json]} (json-req! :post "/approve"
+                                         {:body (json/write-str {:thread-id "x" :decision "approve"})})]
+    (is (= 401 status))
+    (is (= "unauthorized" (:error json)))))
+
 ;; ───────────────────────── /dashboard ─────────────────────────
 
 (deftest dashboard-without-right-role-is-forbidden
