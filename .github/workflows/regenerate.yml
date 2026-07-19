@@ -1,0 +1,60 @@
+# Nightly regeneration -- rebuild docs/samples/operator-console.html through
+# the REAL CRM actor (crm.render-html, driving crm.operation/crm.policy/
+# crm.store the same way crm.sim does) and commit only when the rendered
+# console actually changed. Closes flagship checklist item 2
+# (ADR-2607189300 at com-junkawasaki/root) for cloud-itonami-isic-5820:
+# the wave5 fleet demo-generation sweep covers the 290-repo cluster but
+# explicitly deferred 5820 ("no HTML-render entrypoint") -- this workflow
+# + src/crm/render_html.clj are that entrypoint.
+#
+# JVM Clojure (clojure -M:dev:render-html), not nbb -- this repo's whole
+# CRM actor stack (crm.* + kotoba-lang/{crm,langgraph,langchain}) is JVM.
+#
+# NOTE: GitHub Actions is DISABLED at the repo level for gftdcojp/cloud-itonami
+# (same as deploy.yml / nudge-scan.yml). This file is committed anyway
+# (matching their precedent) so it runs the moment Actions is re-enabled;
+# until then run `clojure -M:dev:render-html` from any scheduler to
+# regenerate (the generated HTML is checked in, so the page is current).
+name: regenerate-console
+on:
+  schedule:
+    - cron: '23 18 * * *'   # 03:23 JST nightly (off-minute on purpose)
+  workflow_dispatch: {}
+permissions:
+  contents: write
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '21'}
+      - name: Install clojure
+        run: |
+          curl -fsSL https://download.clojure.org/install/linux-install.sh | sudo bash
+      - name: Restore clojure classpath cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: m2-render-html-${{ hashFiles('deps.edn') }}
+      - name: Fetch sibling deps (west layout)
+        run: |
+          git clone --depth 1 https://github.com/kotoba-lang/crm.git ../../kotoba-lang/crm
+          git clone --depth 1 https://github.com/kotoba-lang/langgraph.git ../../kotoba-lang/langgraph
+          git clone --depth 1 https://github.com/kotoba-lang/langchain.git ../../kotoba-lang/langchain
+          git clone --depth 1 https://github.com/kotoba-lang/org-chainagnostic-cacao.git ../../kotoba-lang/org-chainagnostic-cacao
+          git clone --depth 1 https://github.com/kotoba-lang/org-ietf-cbor.git ../../kotoba-lang/org-ietf-cbor
+          git clone --depth 1 https://github.com/kotoba-lang/org-ietf-ed25519.git ../../kotoba-lang/org-ietf-ed25519
+      - name: Regenerate operator-console.html
+        run: clojure -M:dev:render-html
+      - name: Commit only on change
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          if git diff --quiet docs/samples/operator-console.html; then
+            echo "console unchanged"
+          else
+            git add docs/samples/operator-console.html
+            git commit -m "chore(docs): regenerate 5820 operator-console.html (crm.render-html)"
+            git push
+          fi
