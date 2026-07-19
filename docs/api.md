@@ -22,18 +22,18 @@ stub. It is also **not yet production-hardened**:
 - **No request logging/observability** beyond whatever the operator adds
   externally (this file adds none beyond what `httpkit`/the JVM already
   emit on stdout/stderr).
-- **No HTTP endpoint for human approval/rejection of an escalated
-  proposal.** `crm.operation`'s graph has a real human-in-the-loop
-  interrupt (`:request-approval`) for low-confidence/revenue-mismatch/
-  dispute cases; `POST /propose` surfaces that as `202 escalated` with a
-  `thread-id`, but there is currently no HTTP route to submit the
-  approval/rejection that would resume that graph run. That resume path
-  today only exists in-process (`langgraph.graph/run*` with
-  `:resume? true`) — a follow-up task, not part of this first HTTP layer.
+- **Escalated proposals resume in-process only — interrupted threads do
+  not survive a restart.** `crm.operation`'s graph has a real
+  human-in-the-loop interrupt (`:request-approval`) for low-confidence/
+  revenue-mismatch/dispute cases; `POST /propose` surfaces that as
+  `202 escalated` with a `thread-id`, and `POST /approve` resumes it
+  (see below). The interrupted thread lives in the in-memory checkpointer
+  on the single `actor` instance built at server-start: resumable for
+  THIS process, lost on restart (no durable thread store).
 
-If you need multi-tenant isolation, TLS, rate limiting, or the approval
-resume endpoint, that is future work — do not assume this service
-already has it.
+If you need multi-tenant isolation, TLS, rate limiting, or a DURABLE
+escalation thread store (surviving process restarts), that is future
+work — do not assume this service already has it.
 
 ## Auth
 
@@ -151,6 +151,7 @@ curl -s http://localhost:8080/
   "links": {
     "health": "/health",
     "propose": "/propose",
+    "approve": "/approve",
     "dashboard": "/dashboard",
     "api-docs": "docs/api.md"
   }
@@ -247,7 +248,7 @@ Field notes:
 - `200` — the graph ran to completion (`:done`). Body:
   - Committed: `{"decision": "committed", "op": .., "subject": .., "record": {...}}`
   - Held (a HARD governor violation, or phase-disabled): `{"decision": "held", "op": .., "subject": .., "violations": [{"rule": "...", "detail": "..."}], "confidence": 0.0-1.0}`
-- `202` — the graph interrupted before human approval (SOFT/always-escalate: low confidence, revenue-mismatch-imminent, or any `dispute/request`, or a phase-approval gate): `{"decision": "escalated", "op": .., "subject": .., "thread-id": "...", "reason": "...", "confidence": .., "note": "..."}`. See "Honest scope" above — there is no HTTP endpoint yet to submit the approval for this `thread-id`.
+- `202` — the graph interrupted before human approval (SOFT/always-escalate: low confidence, revenue-mismatch-imminent, or any `dispute/request`, or a phase-approval gate): `{"decision": "escalated", "op": .., "subject": .., "thread-id": "...", "reason": "...", "confidence": .., "note": "..."}`. Resume it via `POST /approve` with this `thread-id` (see below).
 - `400` — missing/invalid JSON body, or missing required `"op"`.
 - `401` — missing/incorrect bearer token.
 - `500` — unexpected error (includes the exception message; this is a bug if it happens for a documented request shape).
@@ -272,6 +273,42 @@ curl -s -X POST http://localhost:8080/propose \
        "opportunity-id":"opp-300","to-stage":"closed-won","rep-id":"rep-100",
        "discount-pct":25,"source":{"class":"crm-activity-log","ref":"op3"},
        "context":{"actor-id":"rep-1","actor-role":"rep","phase":3}}'
+```
+
+### `POST /approve`
+
+Auth required. Resumes an interrupted (`202 escalated`) graph run by feeding
+the human decision back into the SAME OperationActor graph via
+`langgraph.graph/run*` with `:resume? true` — the identical resume path
+`crm.sim`'s `-main` exercises in-process (`run-op!`). This endpoint contains
+no governance logic of its own.
+
+**Honest scope**: the interrupted thread lives in the **in-memory checkpointer**
+on the single `actor` instance built at server-start. It is resumable for the
+lifetime of THIS process; it is **lost on restart** (there is no durable thread
+store). A resumed run that re-escalates (multi-gate) returns `202` again with
+the new reason — POST `/approve` again with the same `thread-id`.
+
+**Body** (JSON): `{"thread-id": "<id from the 202>", "decision": "approve"|"reject", "by": "<optional approver id>"}`.
+
+**Responses**:
+
+- `200` — the resumed graph ran to completion (`:done`).
+  - Committed (on `"approve"`): `{"decision": "committed", "thread-id": .., "approval": "approved", "record": {...}}`
+  - Held (on `"reject"`, or `"approve"` that still fails a HARD gate): `{"decision": "held", "thread-id": .., "approval": "approved"|"rejected", "violations": [...], "confidence": 0.0-1.0}`
+- `202` — the resumed run re-escalated (multi-gate): `{"decision": "escalated", "thread-id": .., "approval": .., "reason": "..", "note": ".."}`.
+- `400` — missing `thread-id`/`decision`, or `decision` not `"approve"`/`"reject"`.
+- `401` — missing/incorrect bearer token.
+- `404` — `thread-id` is not a resumable interrupted run on this process (unknown, or already final, or lost to a restart).
+
+**curl example**:
+
+```bash
+# Resume a dispute that escalated out of POST /propose with thread-id <T>
+curl -s -X POST http://localhost:8080/approve \
+  -H "Authorization: Bearer $ISIC5820_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"thread-id":"<T>","decision":"approve","by":"manager-1"}'
 ```
 
 ### `GET /dashboard`
