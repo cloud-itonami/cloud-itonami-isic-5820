@@ -49,6 +49,10 @@
   ;; Closes flagship checklist item 2 (ADR-2607189300). :dev needed for the
   ;; sibling langchain override (same as -M:dev:serve).
   :render-html {:main-opts ["-m" "crm.render-html"]}
+  ;; clojure -M:dev:dogfood-seed <path> → write the cloud-itonami own-funnel
+  ;; dogfood snapshot to the ISIC5820_STORE_FILE (reproducible re-seed for
+  ;; the live deploy, ADR-2607199950). Format matches crm.file-store/persist!.
+  :dogfood-seed {:main-opts ["-m" "crm.dogfood-seed"]}
   :test {:extra-paths ["test"]
          :extra-deps {io.github.cognitect-labs/test-runner
                       {:git/tag "v0.5.1" :git/sha "dfb30dd"}}
