@@ -43,6 +43,12 @@
   ;; Port: $ISIC5820_HTTP_PORT (default 8080). Auth: $ISIC5820_API_TOKEN
   ;; MUST be set (fail-closed — see docs/api.md).
   :serve {:main-opts ["-m" "crm.http"]}
+  ;; clojure -M:dev:render-html → build-time regenerate docs/samples/
+  ;; operator-console.html through the real CRM actor (crm.render-html,
+  ;; driving crm.operation/crm.policy/crm.store the same way crm.sim does).
+  ;; Closes flagship checklist item 2 (ADR-2607189300). :dev needed for the
+  ;; sibling langchain override (same as -M:dev:serve).
+  :render-html {:main-opts ["-m" "crm.render-html"]}
   :test {:extra-paths ["test"]
          :extra-deps {io.github.cognitect-labs/test-runner
                       {:git/tag "v0.5.1" :git/sha "dfb30dd"}}
