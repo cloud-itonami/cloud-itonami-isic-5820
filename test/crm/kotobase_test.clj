@@ -4,7 +4,8 @@
   actual live-network round-trip against kotobase.net was verified
   manually (2026-07-18) — see this session's ADR — not re-run here (this
   suite has no network access and must stay hermetic)."
-  (:require [clojure.string :as str]
+  (:require [clojure.edn :as edn]
+            [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]
             [crm.kotobase :as kb]
             [crm.store :as store]))
@@ -90,7 +91,7 @@
            unauthenticated or misconfigured connection"
     (is (thrown-with-msg? clojure.lang.ExceptionInfo #"no seed"
                           (kb/kotobase-store {:seed-hex nil :json-write pr-str
-                                             :json-read read-string})))))
+                                             :json-read edn/read-string})))))
 
 (deftest kotobase-store-writes-through-the-injected-http-fn
   (let [captured (atom [])
@@ -101,13 +102,13 @@
                                   (pr-str {:ok true :graph "g" :commit "c" :datom_count 1})
                                   (pr-str {:ok true :graph "g" :rows_edn []}))))
         s (kb/kotobase-store {:seed-hex test-seed-hex :db-name "test-db"
-                              :json-write pr-str :json-read read-string
+                              :json-write pr-str :json-read edn/read-string
                               :http-fn http-fn})]
     (store/with-reps s {"r1" {:id "r1" :name "Test Rep" :discount-tier :tier/rep}})
     (testing "posted to datomic.transact"
       (is (= "ai.gftd.apps.kotobase.datomic.transact" (:nsid (first @captured)))))
     (testing "request carries db_name (tenant-write scope) and a CACAO"
-      (let [body (read-string (:body (first @captured)))]
+      (let [body (edn/read-string (:body (first @captured)))]
         (is (= "test-db" (:db_name body)))
         (is (string? (:cacao_b64 body)))))))
 
@@ -125,7 +126,7 @@
                                     (pr-str {:ok true :graph "g" :commit "c" :datom_count 1})
                                     (pr-str {:ok true :graph "g" :rows_edn []}))))
           s (kb/kotobase-store {:seed-hex test-seed-hex :db-name "test-db"
-                                :json-write pr-str :json-read read-string
+                                :json-write pr-str :json-read edn/read-string
                                 :http-fn http-fn})]
       (store/with-reps s {"r1" {:id "r1" :name "Rep One" :discount-tier :tier/rep}})
       (store/with-accounts s {"a1" {:id "a1" :name "Account One" :subscription-tier :tier/basic :active? true}})
@@ -133,7 +134,7 @@
             ;; :body is the raw wire string (pr-str'd, matching the
             ;; :json-write pr-str passed to kotobase-store above) --
             ;; must be parsed back before :cacao_b64 is reachable.
-            cacaos (map #(:cacao_b64 (read-string (:body %))) transacts)]
+            cacaos (map #(:cacao_b64 (edn/read-string (:body %))) transacts)]
         (is (= 2 (count transacts)))
         (is (every? string? cacaos))
         (is (= 2 (count (distinct cacaos))))))))
