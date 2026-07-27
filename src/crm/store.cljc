@@ -131,6 +131,13 @@
       (swap! a update-in [:opportunities (first path)] merge (:patch value))
       :lead-status-upsert
       (swap! a update-in [:leads (:lead-id value)] merge {:status (:to-status value)})
+      :lead-capture
+      ;; INSERT-if-absent, never an overwrite: the upstream capture (an LP
+      ;; form, an email thread) is at-least-once, so the same external-id
+      ;; can arrive again after a rep has already advanced the lead's
+      ;; status. Re-writing it would silently reset that work.
+      (let [{:keys [lead]} value]
+        (swap! a update-in [:leads (:id lead)] #(or % lead)))
       :lead-convert-upsert
       (let [{:keys [lead-id contact opportunity]} value
             acct-id (get-in @a [:leads lead-id :account-id])]
@@ -306,6 +313,14 @@
       ((:transact! db-api) conn [(opportunity->tx (merge (opportunity s (first path)) (:patch value)))])
       :lead-status-upsert
       ((:transact! db-api) conn [(lead->tx (merge (lead s (:lead-id value)) {:status (:to-status value)}))])
+      :lead-capture
+      ;; INSERT-if-absent, same contract as MemStore's branch (see there for
+      ;; why a re-capture must not overwrite). `:lead/id` is a
+      ;; `:db.unique/identity` attribute, so an unguarded transact would
+      ;; UPSERT (merge over the existing entity) rather than no-op.
+      (let [lead-rec (:lead value)]
+        (when-not (lead s (:id lead-rec))
+          ((:transact! db-api) conn [(lead->tx lead-rec)])))
       :lead-convert-upsert
       (let [{:keys [lead-id contact-rec opportunity-rec]}
             {:lead-id (:lead-id value)

@@ -23,6 +23,12 @@
     POST /approve      auth    — resume an escalated (202) thread-id with a
                                  human decision (:approve|:reject) -> governed
                                  commit/hold (same StateGraph, :resume? true)
+    POST /leads        auth    — store-level lead CAPTURE (NOT a governed op;
+                                 see `capture-lead`). Idempotent by
+                                 (source, external-id). The ingress an
+                                 upstream funnel (an LP form, an email
+                                 thread) drains into; every DECISION about
+                                 the captured lead still goes via /propose
     GET  /dashboard     auth    — book-wide pipeline/revenue rollup,
                                  RBAC-gated via `crm.policy/check`'s
                                  existing `:pipeline/dashboard-query`
@@ -297,6 +303,79 @@
          :thread-id thread-id
          :status    (:status res)}))))
 
+;; ───────────────────────── /leads ─────────────────────────
+
+(def ^:private safe-id-re
+  "Charset a capture identifier may use. Deliberately narrow: these
+  values become a store key and are echoed back into the audit ledger."
+  #"[A-Za-z0-9][A-Za-z0-9._@:+-]{0,127}")
+
+(defn- safe-id? [v] (and (string? v) (boolean (re-matches safe-id-re v))))
+
+(defn- capture-lead-id
+  "`source` + `external-id` -> the 5820 lead id. Deterministic (so an
+  at-least-once drain of the same upstream capture maps to the SAME
+  lead every time) and source-scoped (so two upstream systems that
+  happen to mint the same local id can never collide)."
+  [source external-id]
+  (str source ":" external-id))
+
+(defn- capture-lead
+  "Store-level lead capture — deliberately NOT a governed op.
+
+  This is the same class of write as account creation (ADR-2607199950:
+  'account creation is store-level, not a governed op') and as
+  `crm.dogfood-seed`: recording that someone filled in a form is not a
+  DECISION, it is an observation, and there is nothing for the
+  SubscriptionGovernor to weigh — no discount authority, no entitlement,
+  no stage sequence. Everything that IS a decision about this lead
+  (`:lead/qualify`, `:lead/convert`) stays governed and goes through
+  /propose unchanged; this endpoint can only ever mint a `:new` lead.
+
+  The ledger fact records `:governed? false` explicitly so an auditor
+  reading the ledger can never mistake a capture for a governed commit.
+
+  Idempotent by (source, external-id): re-posting the same capture
+  returns 200 with `created: false` and does not touch the stored lead
+  (see `crm.store`'s `:lead-capture` branch — insert-if-absent)."
+  [store body]
+  (let [source      (:source body)
+        external-id (:external-id body)
+        email       (:email body)]
+    (cond
+      (not (safe-id? source))
+      (json-response 400 {:error "missing or invalid field: source"
+                          :note  "non-blank, [A-Za-z0-9._@:+-], <=128 chars"})
+
+      (not (safe-id? external-id))
+      (json-response 400 {:error "missing or invalid field: external-id"
+                          :note  "non-blank, [A-Za-z0-9._@:+-], <=128 chars"})
+
+      (or (not (string? email)) (str/blank? email) (not (str/includes? email "@")))
+      (json-response 400 {:error "missing or invalid field: email"})
+
+      :else
+      (let [id       (capture-lead-id source external-id)
+            existing (store/lead store id)]
+        (if existing
+          (json-response 200 {:created false :lead-id id :status (:status existing)
+                              :note "already captured; stored lead left untouched"})
+          (let [lead (cond-> {:id id :status :new :email email :source source}
+                       (string? (:name body))         (assoc :name (:name body))
+                       (string? (:company body))      (assoc :company (:company body))
+                       (string? (:owner-rep-id body)) (assoc :owner-rep-id (:owner-rep-id body)))]
+            (store/commit-record! store {:effect :lead-capture :value {:lead lead}})
+            (store/append-ledger! store
+              (cond-> {:t           :lead-capture
+                       :governed?   false
+                       :subject     id
+                       :actor       "http-ingest"
+                       :disposition :commit
+                       :source      source
+                       :external-id external-id}
+                (string? (:captured-at body)) (assoc :captured-at (:captured-at body))))
+            (json-response 201 {:created true :lead-id id :status "new"})))))))
+
 ;; ───────────────────────── /dashboard ─────────────────────────
 
 (defn- dashboard-response
@@ -325,6 +404,7 @@
    :links     {:health    "/health"
                :propose   "/propose"
                :approve   "/approve"
+               :leads     "/leads"
                :dashboard "/dashboard"
                :api-docs  "docs/api.md"}})
 
@@ -393,6 +473,20 @@
 
                   :else
                   (approve-decision actor thread-id decision by))))))
+
+        (and (= :post request-method) (= "/leads" uri))
+        (if-not (authorized? req token)
+          (json-response 401 {:error "unauthorized"})
+          (let [body (read-body-json req)]
+            (cond
+              (= body ::parse-error)
+              (json-response 400 {:error "invalid JSON body"})
+
+              (not (map? body))
+              (json-response 400 {:error "body must be a JSON object"})
+
+              :else
+              (capture-lead store body))))
 
         (and (= :get request-method) (= "/dashboard" uri))
         (if-not (authorized? req token)

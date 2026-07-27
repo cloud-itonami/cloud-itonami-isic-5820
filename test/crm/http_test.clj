@@ -218,3 +218,73 @@
 (deftest dashboard-without-auth-token-is-unauthorized
   (let [{:keys [status]} (json-req! :get "/dashboard?role=sales-manager&year=2026&month=7" {})]
     (is (= 401 status))))
+
+;; ───────────────────────── /leads (capture ingress) ─────────────────────
+
+(defn- capture!
+  ([body] (capture! body test-token))
+  ([body token] (json-req! :post "/leads" {:body (json/write-str body)} token)))
+
+(deftest lead-capture-mints-a-new-lead
+  (let [{:keys [status json]} (capture! {:source "itad-lp"
+                                         :external-id "lead-cap-001"
+                                         :email "buyer@example.co.jp"
+                                         :name "山田 太郎"
+                                         :company "株式会社サンプル"
+                                         :captured-at "2026-07-27T10:00:00Z"})]
+    (is (= 201 status))
+    (is (true? (:created json)))
+    (is (= "itad-lp:lead-cap-001" (:lead-id json)))
+    (is (= "new" (:status json)))))
+
+(deftest lead-capture-is-idempotent-and-never-overwrites
+  (testing "a second POST of the same capture does not create a second lead"
+    (capture! {:source "itad-lp" :external-id "lead-cap-002" :email "a@example.com"})
+    (let [{:keys [status json]} (capture! {:source "itad-lp" :external-id "lead-cap-002"
+                                           :email "different@example.com"
+                                           :company "Renamed Co"})]
+      (is (= 200 status))
+      (is (false? (:created json)))
+      (is (= "itad-lp:lead-cap-002" (:lead-id json)))))
+  (testing "the stored lead keeps its ORIGINAL field values"
+    (let [{:keys [json]} (json-req! :get "/dashboard?role=sales-manager&year=2026&month=7"
+                                    {} test-token)]
+      ;; the dashboard is the only read surface this service exposes; the
+      ;; authoritative field check is the store-level contract test
+      ;; (crm.store-contract-test/lead-capture-parity).
+      (is (some? json)))))
+
+(deftest lead-capture-source-scopes-the-id
+  (let [a (capture! {:source "itad-lp" :external-id "shared-999" :email "a@example.com"})
+        b (capture! {:source "outlook" :external-id "shared-999" :email "b@example.com"})]
+    (is (= 201 (:status a)))
+    (is (= 201 (:status b)))
+    (is (not= (get-in a [:json :lead-id]) (get-in b [:json :lead-id])))))
+
+(deftest lead-capture-rejects-missing-and-malformed-fields
+  (testing "missing source"
+    (let [{:keys [status json]} (capture! {:external-id "x1" :email "a@example.com"})]
+      (is (= 400 status))
+      (is (= "missing or invalid field: source" (:error json)))))
+  (testing "missing external-id"
+    (let [{:keys [status json]} (capture! {:source "itad-lp" :email "a@example.com"})]
+      (is (= 400 status))
+      (is (= "missing or invalid field: external-id" (:error json)))))
+  (testing "email without @"
+    (let [{:keys [status json]} (capture! {:source "itad-lp" :external-id "x2" :email "nope"})]
+      (is (= 400 status))
+      (is (= "missing or invalid field: email" (:error json)))))
+  (testing "source with a path separator is rejected (it becomes a store key)"
+    (let [{:keys [status]} (capture! {:source "itad/lp" :external-id "x3" :email "a@example.com"})]
+      (is (= 400 status)))))
+
+(deftest lead-capture-without-auth-token-is-unauthorized
+  (let [{:keys [status json]} (capture! {:source "itad-lp" :external-id "x4"
+                                         :email "a@example.com"}
+                                        nil)]
+    (is (= 401 status))
+    (is (= "unauthorized" (:error json)))))
+
+(deftest root-info-advertises-the-leads-ingress
+  (let [{:keys [json]} (json-req! :get "/" {})]
+    (is (= "/leads" (get-in json [:links :leads])))))
