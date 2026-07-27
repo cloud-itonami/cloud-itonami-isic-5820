@@ -84,3 +84,30 @@
     (is (= [] (store/all-leads s)))
     (is (= [] (store/all-contacts s)))
     (is (= [] (store/ledger s)))))
+
+(deftest lead-capture-parity
+  (doseq [[label s] (backends)]
+    (testing label
+      (testing "capture inserts a lead that was not there"
+        (store/commit-record! s {:effect :lead-capture
+                                 :value {:lead {:id "itad-lp:cap-1" :status :new
+                                                :email "a@example.com" :source "itad-lp"
+                                                :name "First Name" :company "First Co"}}})
+        (let [l (store/lead s "itad-lp:cap-1")]
+          (is (= :new (:status l)))
+          (is (= "a@example.com" (:email l)))
+          (is (= "itad-lp" (:source l)))))
+      (testing "re-capture NEVER overwrites an existing lead"
+        ;; the drain is at-least-once, so this must not reset work a rep
+        ;; has already done on the lead.
+        (store/commit-record! s {:effect :lead-status-upsert
+                                 :value {:lead-id "itad-lp:cap-1" :to-status :working}})
+        (store/commit-record! s {:effect :lead-capture
+                                 :value {:lead {:id "itad-lp:cap-1" :status :new
+                                                :email "changed@example.com" :source "itad-lp"
+                                                :name "Second Name" :company "Second Co"}}})
+        (let [l (store/lead s "itad-lp:cap-1")]
+          (is (= :working (:status l)) "status a rep advanced survives a re-capture")
+          (is (= "a@example.com" (:email l)))
+          (is (= "First Name" (:name l)))
+          (is (= "First Co" (:company l))))))))

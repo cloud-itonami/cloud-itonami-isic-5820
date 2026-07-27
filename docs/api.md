@@ -311,6 +311,60 @@ curl -s -X POST http://localhost:8080/approve \
   -d '{"thread-id":"<T>","decision":"approve","by":"manager-1"}'
 ```
 
+### `POST /leads`
+
+Auth required. **Store-level lead capture — deliberately NOT a governed
+op.** This is the ingress an upstream funnel (the `itad.gftd.ai` LP form,
+an Outlook thread, any other capture surface) drains into.
+
+Why ungoverned: recording that someone filled in a form is an
+*observation*, not a *decision*. There is nothing for the
+SubscriptionGovernor to weigh — no discount authority, no entitlement
+scope, no stage sequence. This is the same class of write as account
+creation (ADR-2607199950: "account creation is store-level, not a
+governed op") and `crm.dogfood-seed`. This endpoint can only ever mint a
+`:new` lead; **every decision about that lead (`:lead/qualify`,
+`:lead/convert`) still goes through `POST /propose` and the governor,
+unchanged.** The ledger fact it appends carries `"governed?": false`
+explicitly so an auditor can never mistake a capture for a governed
+commit.
+
+Request fields:
+
+| field | required | notes |
+|---|---|---|
+| `source` | ✅ | which capture surface (`itad-lp`, `outlook`, …). `[A-Za-z0-9._@:+-]`, ≤128 chars |
+| `external-id` | ✅ | the upstream system's own stable id for this capture. Same charset |
+| `email` | ✅ | must contain `@` (no deeper validation — this is an adapter, not a schema layer) |
+| `name` | | recorded verbatim if a string |
+| `company` | | ditto |
+| `owner-rep-id` | | ditto |
+| `captured-at` | | recorded on the ledger fact if a string. This is the UPSTREAM capture time, not the ingest time |
+
+The stored lead id is `"<source>:<external-id>"` — deterministic, so an
+at-least-once drain of the same capture always maps to the same lead,
+and source-scoped, so two upstream systems that mint the same local id
+can never collide.
+
+**Idempotent, insert-if-absent.** Re-posting a capture returns `200`
+with `"created": false` and **does not touch the stored lead** — a
+re-drain can never reset a status a rep has already advanced (verified
+in `crm.store-contract-test/lead-capture-parity`, on both `MemStore` and
+`DatomicStore`).
+
+```bash
+curl -s -X POST http://localhost:8080/leads \
+  -H "Authorization: Bearer $ISIC5820_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"source":"itad-lp","external-id":"lead-1769500000-ab12cd",
+       "email":"buyer@example.co.jp","name":"山田 太郎",
+       "company":"株式会社サンプル","captured-at":"2026-07-27T10:00:00Z"}'
+# 201 {"created":true,"lead-id":"itad-lp:lead-1769500000-ab12cd","status":"new"}
+# 200 {"created":false,"lead-id":"...","status":"new","note":"already captured; ..."}
+# 400 {"error":"missing or invalid field: source|external-id|email", ...}
+# 401 {"error":"unauthorized"}
+```
+
 ### `GET /dashboard`
 
 Auth required, **plus** the exact same RBAC check `crm.policy`'s
