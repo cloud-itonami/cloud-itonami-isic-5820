@@ -288,3 +288,26 @@
 (deftest root-info-advertises-the-leads-ingress
   (let [{:keys [json]} (json-req! :get "/" {})]
     (is (= "/leads" (get-in json [:links :leads])))))
+
+;; ───────────────── /propose over HTTP: keyword-valued fields ─────────────
+
+(deftest propose-lead-qualify-coerces-to-status-to-a-keyword
+  ;; Regression: `to-status` arrives from JSON as the STRING "working".
+  ;; Before `coerce-request` handled it, `crm.policy`'s lead-status-gate
+  ;; compared "working" against `:working` and held EVERY lead
+  ;; qualification over HTTP as "スキップまたは逆行" — including this
+  ;; legitimately next-in-order one. The in-process callers pass keywords,
+  ;; so only an HTTP-level test can catch it.
+  (let [{:keys [status json]}
+        (json-req! :post "/propose"
+                   {:body (json/write-str {:op "lead/qualify"
+                                           :subject "lead-100"
+                                           :lead-id "lead-100"
+                                           :to-status "working"
+                                           :context {:actor-id "rep-100"
+                                                     :actor-role "rep"
+                                                     :phase 3}})}
+                   test-token)]
+    (is (= 200 status))
+    (is (= "committed" (:decision json))
+        (str "expected a governed commit, got: " json))))

@@ -180,6 +180,16 @@
   (cond-> m
     (contains? m :op)                    (update :op ns-kw-val)
     (contains? m :to-stage)              (update :to-stage kw-val)
+    ;; `:lead/qualify`'s target status. Without this coercion the value
+    ;; stays a JSON string and `crm.policy`'s lead-status-gate compares
+    ;; "working" against the keyword `:working` from
+    ;; `crm.facts/lead-status-order` — so EVERY lead qualification over
+    ;; HTTP was held as "スキップまたは逆行", including a legitimately
+    ;; next-in-order one. The in-process callers (crm.sim, the policy/
+    ;; phase tests) pass keywords directly, so no existing test covered
+    ;; this; it was a gap in the HTTP adapter only. Found while draining
+    ;; the first real captured lead through /propose (P1).
+    (contains? m :to-status)             (update :to-status kw-val)
     (contains? m :activate-feature-tier) (update :activate-feature-tier ns-kw-val)
     (contains? m :disputed-field)        (update :disputed-field kw-val)
     (contains? m :claim)                 (update :claim #(if (string? %) (kw-val %) %))
