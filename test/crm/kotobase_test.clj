@@ -5,7 +5,7 @@
   manually (2026-07-18) — see this session's ADR — not re-run here (this
   suite has no network access and must stay hermetic)."
   (:require [clojure.edn :as edn]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [clojure.test :refer [deftest is testing]]
             [crm.kotobase :as kb]
             [crm.store :as store]))
