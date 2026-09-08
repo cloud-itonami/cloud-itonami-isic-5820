@@ -68,7 +68,7 @@
   is the live-model companion (same pattern as
   cloud-itonami-isic-6399/dev/real_advisor_check.clj), NOT part of the
   CI suite (needs a live token)."
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [clojure.data.json :as json]
             [langchain.model :as model]
             [crm.llm :as llm])

@@ -37,7 +37,7 @@
   The ledger stays append-only on every backend."
   (:require #?(:clj  [clojure.edn :as edn]
                :cljs [cljs.reader :as edn])
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [langchain.db :as d]))
 
 (defprotocol Store

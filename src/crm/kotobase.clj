@@ -17,7 +17,7 @@
   are: this is I/O/crypto infrastructure glue over the already-portable
   `crm.store/Store` protocol, not a reimplementation of any
   governance/domain logic."
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [ed25519.core :as ed]
             [cacao.core :as cacao]
             [langchain.kotoba-db :as kdb]
@@ -153,7 +153,7 @@
   [{:keys [url method headers body]}]
   (let [b (HttpRequest/newBuilder (URI/create url))]
     (doseq [[k v] headers] (.header b ^String k ^String v))
-    (let [req (-> b (.method (str/upper-case (name (or method :post)))
+    (let [req (-> b (.method (str/upper (name (or method :post)))
                             (if body
                               (HttpRequest$BodyPublishers/ofString ^String body)
                               (HttpRequest$BodyPublishers/noBody)))

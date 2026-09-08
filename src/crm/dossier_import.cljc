@@ -32,7 +32,7 @@
        fleet's governed actors exist to prevent. A dossier company whose
        own `:status` is anything other than `:active` (e.g. `:dissolved`)
        is refused outright — never imported as a live prospect."
-  (:require [clojure.string :as str]))
+  (:require [kotoba.lang.text :as str]))
 
 (def ^:private known-registry-prefixes
   "The id-namespace prefixes `dossier.live-store` mints (ADR-2607110400 +
