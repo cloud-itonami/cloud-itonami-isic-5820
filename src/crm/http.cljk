@@ -547,7 +547,7 @@
   API has not been exercised anywhere in this build (no credentials were
   ever available to do so) — only `preflight`'s reporting and the request/
   response wire shape against a local stub server are verified (see
-  `test/crm/llm_realmodel_test.clj`). Choosing this mode wires a real,
+  `test/crm/llm_realmodel_test.cljk`). Choosing this mode wires a real,
   untested-against-a-real-model adapter, not a proven-safe one."
   []
   (let [{:keys [api-key?] :as pf} (llm-realmodel/preflight)]

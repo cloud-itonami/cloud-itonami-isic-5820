@@ -14,7 +14,7 @@ io.github.kotoba-lang/langgraph
         ;; Explicit top-level :local/root (NOT left to :dev's override-
         ;; deps alone): langgraph's own deps.edn pins langchain to a git
         ;; SHA, and tools.deps resolves the SHALLOWEST declaration for a
-        ;; given lib -- crm.kotobase (src/crm/kotobase.clj) needs
+        ;; given lib -- crm.kotobase (src/crm/kotobase.cljk) needs
         ;; langchain.kotoba-db's live fixes (this session's :q/:pull/
         ;; :entid wire-format corrections), so a plain `clojure -M:serve`
         ;; (no :dev) must not silently fall back to the stale git-pinned
@@ -25,12 +25,12 @@ io.github.kotoba-lang/langgraph
         ;; langchain` checkout already had the fix.
         io.github.kotoba-lang/langchain
         {:local/root "../../kotoba-lang/langchain"}
-        ;; HTTP service layer (src/crm/http.clj, JVM-only compat glue —
+        ;; HTTP service layer (src/crm/http.cljk, JVM-only compat glue —
         ;; see its ns docstring for why this is not a .cljc violation).
         http-kit/http-kit        {:mvn/version "2.8.1"}
         ring/ring-core           {:mvn/version "1.15.3"}
         org.clojure/data.json    {:mvn/version "2.5.2"}
-        ;; kotobase.net Store backend (src/crm/kotobase.clj): self-sovereign
+        ;; kotobase.net Store backend (src/crm/kotobase.cljk): self-sovereign
         ;; CACAO mint (this actor's own Ed25519 key, never a handed token) —
         ;; same pattern as com-etzhayyim-tsumugu's tsumugu.cacao/tsumugu.kotoba
         ;; (CLAUDE.md "kotoba-server (kotobase.net) = actor が自分の鍵で CACAO
@@ -47,7 +47,7 @@ io.github.kotoba-lang/langgraph
         {io.github.kotoba-lang/langchain
          {:local/root "../../kotoba-lang/langchain"}}}
   :run {:main-opts ["-m" "crm.sim"]}
-  ;; clojure -M:serve → starts the real HTTP service (src/crm/http.clj).
+  ;; clojure -M:serve → starts the real HTTP service (src/crm/http.cljk).
   ;; Port: $ISIC5820_HTTP_PORT (default 8080). Auth: $ISIC5820_API_TOKEN
   ;; MUST be set (fail-closed — see docs/api.md).
   :serve {:main-opts ["-m" "crm.http"]}

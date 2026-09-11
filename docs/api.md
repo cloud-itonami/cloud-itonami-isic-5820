@@ -1,4 +1,4 @@
-# HTTP API (`src/crm/http.clj`)
+# HTTP API (`src/crm/http.cljk`)
 
 This is the first HTTP service layer over the `cloud-itonami-isic-5820`
 actor. It is a **thin adapter**: it does not reimplement any governance
@@ -115,7 +115,7 @@ real/persistent backend" — that description was inaccurate for how
 **in-process** EAV emulation — see that ns's docstring) — there is no
 connection URI, no socket, no file, nothing that outlives the JVM heap.
 It is Datomic-API-*shaped* (which is what makes
-`test/crm/store_contract_test.clj`'s `MemStore ≡ DatomicStore` parity
+`test/crm/store_contract_test.cljk`'s `MemStore ≡ DatomicStore` parity
 test meaningful for a *future* backend swap), not Datomic-*backed*. As
 shipped, selecting `DatomicStore` for `-main` would be exactly as
 ephemeral as `seed-db` — just with a name that implies otherwise — so
@@ -403,7 +403,7 @@ curl -s "http://localhost:8080/dashboard?role=rep&year=2026&month=7" \
 
 ## Testing
 
-`test/crm/http_test.clj` starts the real `crm.http` server on an
+`test/crm/http_test.cljk` starts the real `crm.http` server on an
 ephemeral port (`:port 0`) inside the test JVM via `start-server!`,
 makes real HTTP requests against it with `java.net.http` (no mocked
 handler shortcut), and stops the server in teardown. See that file for
@@ -413,9 +413,9 @@ violation reusing `crm.sim`'s own op3 scenario -> held with violations;
 `/dashboard` without the right role -> 403; `/dashboard` as
 `sales-manager` -> real data).
 
-## Real-model RevOps-LLM advisor (`src/crm/llm_realmodel.clj`)
+## Real-model RevOps-LLM advisor (`src/crm/llm_realmodel.cljk`)
 
-**Honest gap, and what closes it.** `src/crm/llm.cljc`'s RevOps-LLM
+**Honest gap, and what closes it.** `src/crm/llm.cljk`'s RevOps-LLM
 advisor is a SEALED, deterministic mock (`crm.llm/mock-advisor` /
 `crm.llm/infer`) — it never calls a real language model. That was a
 genuine, known gap toward real production operation. `crm.llm-realmodel`
@@ -476,7 +476,7 @@ call and never prints the API key value (only `:api-key?`, a boolean):
 - **Verified**: `preflight`'s missing/present reporting across the full
   permutation matrix (openai/anthropic/openclaw, present/absent url,
   present/absent key, unknown provider, blank-string env values) — see
-  `test/crm/llm_realmodel_test.clj`'s `preflight-*` tests.
+  `test/crm/llm_realmodel_test.cljk`'s `preflight-*` tests.
 - **Verified**: the exact JSON request this adapter sends (method,
   bearer header, model field, message shape) and its parsing of a
   well-formed OpenAI-compatible response — against a **real local

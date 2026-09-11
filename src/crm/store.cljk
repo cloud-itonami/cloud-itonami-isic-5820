@@ -10,7 +10,7 @@
                        kotoba-server pod.
 
   Both implement the same protocol and pass the same contract
-  (test/crm/store_contract_test.clj) — the actor, the SubscriptionGovernor
+  (test/crm/store_contract_test.cljk) — the actor, the SubscriptionGovernor
   and the audit ledger never know which SSoT they run on.
 
   Entity shapes: a rep (discount-tier), an account (subscription-tier,

@@ -6,7 +6,7 @@
   `crm.http/-main` as a real OS process against a temp file, committing
   data over real HTTP, killing the process, restarting it, and confirming
   the data is still there (see this repo's PR/commit description for the
-  transcript; `test/crm/file_store_test.clj` covers the same contract at
+  transcript; `test/crm/file_store_test.cljk` covers the same contract at
   the Store level, in-process, for fast regression coverage).
 
   JVM-only (`.clj`, not `.cljc`) for the same reason `crm.http` is: file
@@ -25,7 +25,7 @@
   `(atom {:db ... :log []})`; there is no connection URI, no socket, no
   file, nothing that outlives the JVM heap. It is Datomic-API-*shaped*
   (via `langchain.db`, a pure in-process EAV emulation — see that ns's
-  docstring), not Datomic-*backed*. `test/crm/store_contract_test.clj`
+  docstring), not Datomic-*backed*. `test/crm/store_contract_test.cljk`
   proves `MemStore` and `DatomicStore` are read/write-equivalent, which is
   true and valuable for a future backend swap — but neither one persists
   past the process, so picking `DatomicStore` for `-main` would not have

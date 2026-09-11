@@ -70,7 +70,7 @@ clojure -M:dev:run
 
 ## Running as a service
 
-`src/crm/http.clj` wraps this actor in a minimal, real HTTP service
+`src/crm/http.cljk` wraps this actor in a minimal, real HTTP service
 (http-kit) — a governed, bearer-token-authenticated `POST /propose` +
 RBAC-gated `GET /dashboard` + `GET /health`/`GET /` — so it can actually
 run as a live process instead of only being invoked as a library.
@@ -153,7 +153,7 @@ decision that are out of scope here.
 ### Real-model RevOps-LLM advisor (optional)
 
 By default the RevOps-LLM advisor (`crm.llm`) is a SEALED, deterministic
-mock — no real language model is ever called. `src/crm/llm_realmodel.clj`
+mock — no real language model is ever called. `src/crm/llm_realmodel.cljk`
 adds a real OpenAI-compatible/Anthropic HTTP adapter, wired in via
 `crm.http/resolve-advisor!`: set `ISIC5820_MODEL_API_KEY` and the server
 uses it instead of the mock (unset/blank = unchanged sealed-mock default).
@@ -173,7 +173,7 @@ stub standing in for the model API. See **[`docs/api.md`](docs/api.md)**'s
 
 ## Dashboard (pipeline funnel + revenue rollup)
 
-`src/crm/dashboard.cljc` is a book-wide, cross-record aggregate view —
+`src/crm/dashboard.cljk` is a book-wide, cross-record aggregate view —
 distinct from `crm.report`'s GOVERNED render of ONE opportunity's
 disclosure-tier-gated columns for ONE account-holder. It answers "how is
 the whole pipeline doing", not "what does this one customer see":

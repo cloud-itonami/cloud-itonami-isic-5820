@@ -20,7 +20,7 @@ TicketGovernor)の写像。
 | pipeline stage をスキップして closed-won 確定 | 承認プロセスの空洞化 |
 | 計上額が ASC606/IFRS15 の recompute と乖離したまま自動処理 | 収益認識の誤り |
 
-## 2. OperationActor(`src/crm/operation.cljc`)
+## 2. OperationActor(`src/crm/operation.cljk`)
 
 ```
 intake → advise → govern → decide ─┬─ commit
@@ -28,7 +28,7 @@ intake → advise → govern → decide ─┬─ commit
                                    └─ hold
 ```
 
-## 3. SubscriptionGovernor(`src/crm/policy.cljc`)
+## 3. SubscriptionGovernor(`src/crm/policy.cljk`)
 
 優先順位(HARD は人間承認でも上書き不可):
 
@@ -47,18 +47,18 @@ intake → advise → govern → decide ─┬─ commit
    ASC606/IFRS15 straight-line recompute と計上額が乖離したら常に人間承認
 10. dispute-request(SOFT、無条件)
 
-## 4. SSoT(`src/crm/store.cljc`)
+## 4. SSoT(`src/crm/store.cljk`)
 
 reps(discount-tier)・accounts(subscription-tier/active?)・
 opportunities(stage/amount/discount-pct/closed?)・subscriptions
 (product-tier/contract-value/term/start-date)・append-only ledger。
 
-## 5. R0(`src/crm/facts.cljc`)
+## 5. R0(`src/crm/facts.cljk`)
 
 出典クラス3種 + 3段階 discount-authority tier + 3段階 subscription
 feature tier + 5-stage 線形パイプライン(+1 exit stage)。
 
-## 6. Phase 0→3(`src/crm/phase.cljc`)
+## 6. Phase 0→3(`src/crm/phase.cljk`)
 
 `default-phase` = 1(保守的)。`dispute/request` はどの phase の `:auto`
 にも入らない。
