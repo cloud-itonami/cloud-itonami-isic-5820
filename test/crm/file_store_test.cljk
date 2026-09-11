@@ -7,7 +7,7 @@
 
   This test does NOT itself kill and restart an OS process — it proves
   the snapshot-to-disk/load-from-disk logic is correct, not that a real
-  `clojure -M:serve` process survives a real restart. That end-to-end
+  `kbb -M:serve` process survives a real restart. That end-to-end
   claim was verified separately and manually (real `-main` process,
   real HTTP POSTs, real `kill`, real restart, real HTTP GETs) — see the
   commit/PR description for that transcript; it is not automated here

@@ -16,9 +16,9 @@ io.github.kotoba-lang/langgraph
         ;; SHA, and tools.deps resolves the SHALLOWEST declaration for a
         ;; given lib -- crm.kotobase (src/crm/kotobase.cljk) needs
         ;; langchain.kotoba-db's live fixes (this session's :q/:pull/
-        ;; :entid wire-format corrections), so a plain `clojure -M:serve`
+        ;; :entid wire-format corrections), so a plain `kbb -M:serve`
         ;; (no :dev) must not silently fall back to the stale git-pinned
-        ;; copy. Confirmed this was happening, 2026-07-18: `clojure -M
+        ;; copy. Confirmed this was happening, 2026-07-18: `kbb -M
         ;; <script requiring crm.kotobase>` without :dev loaded the old
         ;; kotoba_db.cljc (a println added directly inside its :pull impl
         ;; never printed), even though the local `orgs/kotoba-lang/
@@ -47,17 +47,17 @@ io.github.kotoba-lang/langgraph
         {io.github.kotoba-lang/langchain
          {:local/root "../../kotoba-lang/langchain"}}}
   :run {:main-opts ["-m" "crm.sim"]}
-  ;; clojure -M:serve → starts the real HTTP service (src/crm/http.cljk).
+  ;; kbb -M:serve → starts the real HTTP service (src/crm/http.cljk).
   ;; Port: $ISIC5820_HTTP_PORT (default 8080). Auth: $ISIC5820_API_TOKEN
   ;; MUST be set (fail-closed — see docs/api.md).
   :serve {:main-opts ["-m" "crm.http"]}
-  ;; clojure -M:dev:render-html → build-time regenerate docs/samples/
+  ;; kbb -M:dev:render-html → build-time regenerate docs/samples/
   ;; operator-console.html through the real CRM actor (crm.render-html,
   ;; driving crm.operation/crm.policy/crm.store the same way crm.sim does).
   ;; Closes flagship checklist item 2 (ADR-2607189300). :dev needed for the
   ;; sibling langchain override (same as -M:dev:serve).
   :render-html {:main-opts ["-m" "crm.render-html"]}
-  ;; clojure -M:dev:dogfood-seed <path> → write the cloud-itonami own-funnel
+  ;; kbb -M:dev:dogfood-seed <path> → write the cloud-itonami own-funnel
   ;; dogfood snapshot to the ISIC5820_STORE_FILE (reproducible re-seed for
   ;; the live deploy, ADR-2607199950). Format matches crm.file-store/persist!.
   :dogfood-seed {:main-opts ["-m" "crm.dogfood-seed"]}

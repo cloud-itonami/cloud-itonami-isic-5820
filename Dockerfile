@@ -3,9 +3,9 @@
 # cloud-itonami-isic-5820 -- container image for the crm.http service.
 #
 # This repo has no uberjar/tools.build alias (see deps.edn): its own
-# `clojure -M:serve` alias just runs `-m crm.http` directly off the CLI
+# `kbb -M:serve` alias just runs `-m crm.http` directly off the CLI
 # classpath. So instead of inventing a build tool this repo doesn't
-# have, the builder stage resolves the SAME classpath `clojure -M:dev:serve`
+# have, the builder stage resolves the SAME classpath `kbb -M:dev:serve`
 # would use (the `:dev` override pins `io.github.kotoba-lang/langchain` to
 # the sibling checkout, exactly like this repo's own dev/test workflow),
 # and the runtime stage just replays that resolved classpath with a plain
@@ -47,7 +47,7 @@ RUN git clone --depth 1 https://github.com/kotoba-lang/crm.git /build/orgs/kotob
 # actually invoke -main -- crm.http's fail-closed -main would exit 1
 # here with no ISIC5820_API_TOKEN set, which is exactly what happened
 # during initial iteration on this Dockerfile).
-RUN clojure -Spath -M:dev:serve > /build/classpath.txt
+RUN kbb -Spath -M:dev:serve > /build/classpath.txt
 
 # ---------------------------------------------------------------------
 
