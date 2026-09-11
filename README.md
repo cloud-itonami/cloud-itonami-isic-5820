@@ -64,8 +64,8 @@ resolves a dispute the SubscriptionGovernor would reject.
 ## Run
 
 ```bash
-clojure -M:dev:test
-clojure -M:dev:run
+kbb -M:dev:test
+kbb -M:dev:run
 ```
 
 ## Running as a service
@@ -78,7 +78,7 @@ run as a live process instead of only being invoked as a library.
 explicit token.
 
 ```bash
-ISIC5820_API_TOKEN=<your-token> clojure -M:serve   # port: $ISIC5820_HTTP_PORT, default 8080
+ISIC5820_API_TOKEN=<your-token> kbb -M:serve   # port: $ISIC5820_HTTP_PORT, default 8080
 # optional: ISIC5820_STORE_FILE=/path/to/db.edn -- disk-durable store (see docs/api.md's Persistence section)
 ```
 
@@ -105,7 +105,7 @@ The `Dockerfile` is a multi-stage build: a builder stage (JDK + Clojure
 CLI) clones this repo's `:local/root` sibling deps
 (`kotoba-lang/{crm,langgraph,langchain}` — public repos; no uberjar/
 `tools.build` alias exists in this repo, so the builder just resolves
-the same classpath `clojure -M:dev:serve` would use) and records it to
+the same classpath `kbb -M:dev:serve` would use) and records it to
 a file; the runtime stage is a minimal `eclipse-temurin:21-jre-alpine`
 image that replays that classpath with a plain `java` invocation as a
 non-root user — no Clojure CLI, build tool, or network access needed to
@@ -159,7 +159,7 @@ adds a real OpenAI-compatible/Anthropic HTTP adapter, wired in via
 uses it instead of the mock (unset/blank = unchanged sealed-mock default).
 
 ```bash
-ISIC5820_API_TOKEN=<token> ISIC5820_MODEL_API_KEY=<real key> clojure -M:serve
+ISIC5820_API_TOKEN=<token> ISIC5820_MODEL_API_KEY=<real key> kbb -M:serve
 # optional: ISIC5820_MODEL_PROVIDER=openai|anthropic|openclaw (default openai)
 # optional: ISIC5820_MODEL_URL (required for openclaw), ISIC5820_MODEL
 ```

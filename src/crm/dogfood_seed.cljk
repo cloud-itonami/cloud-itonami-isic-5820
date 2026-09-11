@@ -4,7 +4,7 @@
   The live deploy (ADR-2607199950) hosts cloud-itonami's OWN sales funnel
   in this CRM. That funnel state was initially written by hand to the
   ISIC5820_STORE_FILE; this namespace makes it reproducible —
-  `clojure -M:dev:dogfood-seed <path>` writes the exact dogfood snapshot
+  `kbb -M:dev:dogfood-seed <path>` writes the exact dogfood snapshot
   (cloud-itonami's real funnel) in the SAME `(pr-str db)` format
   `crm.file-store/persist!` uses, so `file-store!` on that path loads it
   verbatim on the next service start.
@@ -60,7 +60,7 @@
 
 (defn -main
   "Writes the dogfood snapshot to `path` in the crm.file-store format
-  (pr-str + atomic rename). Usage: clojure -M:dev:dogfood-seed <path>
+  (pr-str + atomic rename). Usage: kbb -M:dev:dogfood-seed <path>
   (typically $ISIC5820_STORE_FILE)."
   [path]
   (let [db (dogfood-data)

@@ -2,7 +2,7 @@
   "Minimal, real HTTP service layer over the existing `crm.operation` /
   `crm.policy` / `crm.dashboard` actor graph — the first step toward
   running this actor as a live, network-callable process instead of a
-  Clojure library invoked only via `clojure -M:dev:run` or test code.
+  Clojure library invoked only via `kbb -M:dev:run` or test code.
 
   JVM-only (`.clj`, not `.cljc`) is the correct choice here per this
   fleet's runtime-priority convention (CLAUDE.md's `.cljc`/`.kotoba`
@@ -36,7 +36,7 @@
 
   Auth: bearer token (`Authorization: Bearer <token>`) compared against
   a token supplied at server-start time (from `$ISIC5820_API_TOKEN` when
-  started via `-main`/`clojure -M:serve`). FAIL CLOSED: `start-server!`
+  started via `-main`/`kbb -M:serve`). FAIL CLOSED: `start-server!`
   refuses to start at all if given a blank/nil token, and `-main` exits
   1 without starting anything if the env var is unset — there is no
   'runs with auth disabled' path. See docs/api.md for the full contract,
@@ -640,7 +640,7 @@
         (store/seed-db))))
 
 (defn -main
-  "Entry point for `clojure -M:serve`. Reads:
+  "Entry point for `kbb -M:serve`. Reads:
     $ISIC5820_API_TOKEN — REQUIRED. If unset/blank, prints a fatal error
                           to stderr and exits 1 WITHOUT starting the
                           server (fail closed — no 'runs with no auth'

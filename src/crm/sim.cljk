@@ -15,7 +15,7 @@
     op8  stage をスキップした遷移提案(qualification → closed-won)        → stage-sequence REJECT → hold
     op9  既に closed 済みの opportunity への再遷移提案                    → double-close REJECT → hold
 
-  Run: clojure -M:dev:run"
+  Run: kbb -M:dev:run"
   (:require [langgraph.graph :as g]
             [crm.store :as store]
             [crm.operation :as op]

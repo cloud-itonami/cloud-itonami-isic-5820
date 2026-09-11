@@ -5,7 +5,7 @@
   Mirrors cloud-itonami-isic-6399's dev/real_advisor_check.cljk pattern.
 
   NOT part of the CI suite: needs a live api.murakumo.cloud token. Run:
-    clojure -M:dev -m real-advisor-check <token>"
+    kbb -M:dev -m real-advisor-check <token>"
   (:require [langgraph.graph :as g]
             [crm.llm-realmodel :as realmodel]
             [crm.operation :as op]
@@ -28,7 +28,7 @@
 
 (defn -main [& [token]]
   (when-not token
-    (println "usage: clojure -M:dev -m real-advisor-check <murakumo-bearer-token>")
+    (println "usage: kbb -M:dev -m real-advisor-check <murakumo-bearer-token>")
     (System/exit 1))
   (let [advisor (realmodel/real-advisor {:provider "anthropic"
                                          :url "https://api.murakumo.cloud/v1/messages"

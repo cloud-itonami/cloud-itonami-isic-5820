@@ -4,7 +4,7 @@ This is the first HTTP service layer over the `cloud-itonami-isic-5820`
 actor. It is a **thin adapter**: it does not reimplement any governance
 logic. Every governed decision is produced by the exact same
 `crm.operation`/`crm.policy`/`crm.dashboard` code the library entry
-points (`clojure -M:dev:run`, the test suite) already use.
+points (`kbb -M:dev:run`, the test suite) already use.
 
 ## Honest scope (read this first)
 
@@ -48,7 +48,7 @@ The token is whatever value the server was started with — see
 
 - `crm.http/start-server!` throws (refuses to start) if given a
   nil/blank token.
-- `clojure -M:serve` (`crm.http/-main`) reads `$ISIC5820_API_TOKEN` at
+- `kbb -M:serve` (`crm.http/-main`) reads `$ISIC5820_API_TOKEN` at
   startup; if it is unset or blank, it prints a fatal error to stderr
   and exits `1` **without starting the server at all**. There is no
   "runs with auth disabled" fallback anywhere in this code.
@@ -65,7 +65,7 @@ you must supply one.
 ## Running the server
 
 ```bash
-ISIC5820_API_TOKEN=<your-token> clojure -M:serve
+ISIC5820_API_TOKEN=<your-token> kbb -M:serve
 # optional: ISIC5820_HTTP_PORT=9000 (default 8080)
 # optional: ISIC5820_STORE_FILE=/path/to/db.edn  -- see "Persistence" below
 ```
@@ -95,7 +95,7 @@ container's environment unchanged — nothing is baked into the image.
   that path after every mutating call (write-then-rename, so a crash
   mid-write can't leave a truncated snapshot), and loaded back from that
   path the next time the process starts. **This is disk-durable and has
-  been verified end-to-end**: a real `clojure -M:serve` process was
+  been verified end-to-end**: a real `kbb -M:serve` process was
   started against a temp `ISIC5820_STORE_FILE`, a real `POST /propose`
   committed a stage transition over real HTTP, the process was killed
   (`kill`, not a graceful shutdown), restarted against the same file, and
@@ -454,7 +454,7 @@ ISIC5820_API_TOKEN=<token> \
 ISIC5820_MODEL_API_KEY=<real key> \
 ISIC5820_MODEL_PROVIDER=openai \
 ISIC5820_MODEL=gpt-4o-mini \
-  clojure -M:serve
+  kbb -M:serve
 ```
 
 ### Startup log / `preflight`
