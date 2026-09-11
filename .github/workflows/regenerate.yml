@@ -5,7 +5,7 @@
 # (ADR-2607189300 at com-junkawasaki/root) for cloud-itonami-isic-5820:
 # the wave5 fleet demo-generation sweep covers the 290-repo cluster but
 # explicitly deferred 5820 ("no HTML-render entrypoint") -- this workflow
-# + src/crm/render_html.clj are that entrypoint.
+# + src/crm/render_html.cljk are that entrypoint.
 #
 # JVM Clojure (clojure -M:dev:render-html), not nbb -- this repo's whole
 # CRM actor stack (crm.* + kotoba-lang/{crm,langgraph,langchain}) is JVM.

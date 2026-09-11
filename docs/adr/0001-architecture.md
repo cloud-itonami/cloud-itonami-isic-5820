@@ -85,7 +85,7 @@ actor が同じロジックを再導出せず再利用できるようにする�
 - `kotoba-lang/industry` `resources/kotoba/industry/registry.edn`
   (fleet-wide maturity registry)
 
-## Addendum(2026-07-12): `src/crm/dashboard.cljc` — book-wide 集計
+## Addendum(2026-07-12): `src/crm/dashboard.cljk` — book-wide 集計
 ダッシュボード(pipeline funnel / conversion rate / revenue rollup)
 
 ### 課題
@@ -102,7 +102,7 @@ reporting/dashboard で深める」への対応。
 counts/reached-counts/conversion-rate、pure・storage-agnostic)を
 この actor 固有の `crm.facts/pipeline-stage-order` /
 `crm.facts/exit-stages`(`stage-sequence-gate` と同一のステージ語彙)の
-上に適用し、`src/crm/dashboard.cljc` として実装した。収益 rollup は
+上に適用し、`src/crm/dashboard.cljk` として実装した。収益 rollup は
 `kotoba.crm.revrec/recognized-revenue-to-date` を全 ACTIVE
 subscription に対して再計算・合算する — `crm.policy` の
 `revenue-mismatch-imminent?` gate が既に依拠している同じ
@@ -113,7 +113,7 @@ proposal 由来の数字を信用しない。
 book-wide の収益 rollup は全 account を列挙する必要があるが、既存
 protocol には account 単体 lookup(`account`)しか無かったため。
 `all-reps`/`all-opportunities` と同型の追加で、`MemStore`/
-`DatomicStore` 双方に実装し、`test/crm/store_contract_test.clj` の
+`DatomicStore` 双方に実装し、`test/crm/store_contract_test.cljk` の
 `read-parity`/`datomic-empty-store-is-usable` に parity assertion を
 追加して契約を保った(後方互換な追加、既存メソッドの変更なし)。
 
@@ -173,12 +173,12 @@ protocol には account 単体 lookup(`account`)しか無かったため。
 - `kotoba-lang/crm` `src/kotoba/crm/funnel.cljc`(この addendum で
   新規依存に追加した集計 commons)
 
-## Addendum(2026-07-13): `src/crm/llm_realmodel.clj` — 実モデル呼び出し
+## Addendum(2026-07-13): `src/crm/llm_realmodel.cljk` — 実モデル呼び出し
 adapter(honest gap 解消、ただし実呼び出し自体は未検証)
 
 ### 課題
 
-`src/crm/llm.cljc` の RevOps-LLM advisor は SEALED/決定論的な mock
+`src/crm/llm.cljk` の RevOps-LLM advisor は SEALED/決定論的な mock
 (`crm.llm/mock-advisor`/`crm.llm/infer`)であり、実際の言語モデルを
 一切呼ばない。これは本番運用へ向けた既知の gap であり、後で operator が
 実クレデンシャルを与えたときに actor を実モデルへ向けられる経路が無かった。
@@ -194,7 +194,7 @@ adapter(honest gap 解消、ただし実呼び出し自体は未検証)
 既に確立していた `ITO_MODEL_PROVIDER`/`ITO_MODEL_URL`/`ITO_MODEL`/
 `ITO_MODEL_API_KEY` という env-var 駆動の convention をそのまま踏襲し
 (非互換な新規 shape を発明しない)、`ISIC5820_`-prefix 版として
-`src/crm/llm_realmodel.clj`(JVM-only、`crm.http`/`crm.file-store` と
+`src/crm/llm_realmodel.cljk`(JVM-only、`crm.http`/`crm.file-store` と
 同じ理由——実 HTTP I/O は kotoba-wasm/clojurewasm/cljs/nbb 層に
 portable primitive が無いインフラ glue)に実装した。
 
@@ -220,7 +220,7 @@ boolean のみ)と共に必ず print する。`warn-ephemeral-store!` が確立�
 - ✅ `preflight` の missing/present 判定ロジック——provider 別
   (openai/anthropic/openclaw)・url/key の有無・unknown provider・
   blank env value の全パターンをクレデンシャル無しで検証
-  (`test/crm/llm_realmodel_test.clj`)。
+  (`test/crm/llm_realmodel_test.cljk`)。
 - ✅ 実際に送信する HTTP リクエストの wire shape(method・bearer
   header・JSON body の model/messages フィールド)と、レスポンス
   parse——ただし相手は**本物の実モデル API ではなく、この build 内で

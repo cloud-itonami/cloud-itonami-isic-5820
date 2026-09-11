@@ -2,7 +2,7 @@
   "Live-model verification of crm.llm-realmodel/real-advisor against the
   murakumo fleet main model (ADR-2607173100/2607173300) -- extended
   (ADR-2607173400) to cover the new :lead/qualify / :lead/convert ops.
-  Mirrors cloud-itonami-isic-6399's dev/real_advisor_check.clj pattern.
+  Mirrors cloud-itonami-isic-6399's dev/real_advisor_check.cljk pattern.
 
   NOT part of the CI suite: needs a live api.murakumo.cloud token. Run:
     clojure -M:dev -m real-advisor-check <token>"

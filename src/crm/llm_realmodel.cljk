@@ -1,6 +1,6 @@
 (ns crm.llm-realmodel
   "Real-model adapter for `crm.llm`'s Advisor protocol — the piece that was
-  genuinely missing before this file existed: `src/crm/llm.cljc`'s
+  genuinely missing before this file existed: `src/crm/llm.cljk`'s
   RevOps-LLM was a SEALED/deterministic mock (`crm.llm/mock-advisor`,
   `crm.llm/infer`) with no way to point the actor at an actual language
   model. `crm.llm.cljc` already defines the seam this needed — a generic
@@ -55,18 +55,18 @@
 
   2026-07-17 update (ADR-2607173300): a real end-to-end call through
   `real-advisor` to a live model API IS now verified — see
-  `dev/real_advisor_check.clj`, run against the murakumo fleet's
+  `dev/real_advisor_check.cljk`, run against the murakumo fleet's
   `murakumo-main` alias (provider :anthropic, url
   https://api.murakumo.cloud/v1/messages, currently resolving to
   qwen3.6-35b-a3b). Both a bad-subject request (opportunity not found,
   governor correctly HOLDs) and a valid opp-100 transition (model
   correctly returns a well-formed :stage-transition-upsert proposal,
   parsed EDN, routed through the SAME actor graph as the mock advisor)
-  were exercised live. Unit tests (`test/crm/llm_realmodel_test.clj`)
+  were exercised live. Unit tests (`test/crm/llm_realmodel_test.cljk`)
   still only exercise the adapter against a local http-kit stub — that
-  remains the deterministic/CI-safe coverage; `dev/real_advisor_check.clj`
+  remains the deterministic/CI-safe coverage; `dev/real_advisor_check.cljk`
   is the live-model companion (same pattern as
-  cloud-itonami-isic-6399/dev/real_advisor_check.clj), NOT part of the
+  cloud-itonami-isic-6399/dev/real_advisor_check.cljk), NOT part of the
   CI suite (needs a live token)."
   (:require [kotoba.lang.text :as str]
             [clojure.data.json :as json]
@@ -173,7 +173,7 @@
   "Builds a `langchain.model/ChatModel` for a REAL model API from
   `ISIC5820_MODEL_*` env vars (or explicit `opts` overrides, same keys as
   `model-config`, plus `:http-fn` to inject a stub for testing — see
-  `test/crm/llm_realmodel_test.clj`). Delegates the actual request/response
+  `test/crm/llm_realmodel_test.cljk`). Delegates the actual request/response
   wire shape entirely to `langchain.model/anthropic-model`/`openai-model`
   (both already generic, already tested in `kotoba-lang/langchain`) —
   this function only resolves config and picks which of those two to call.
