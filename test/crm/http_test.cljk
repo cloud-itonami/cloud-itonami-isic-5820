@@ -10,7 +10,7 @@
   (op1: clean stage transition -> commit; op3: discount-authority
   exceeded -> hard hold) rather than inventing new ones."
   (:require [kotoba.test :refer [deftest is testing use-fixtures]]
-            [clojure.data.json :as json]
+            [kotoba.json :as json]
             [org.httpkit.server :as httpkit]
             [crm.http :as http]
             [crm.store :as store])

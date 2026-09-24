@@ -75,7 +75,7 @@
   apply to it, but it aggregates every account's pipeline/revenue,
   which no single `:account-holder` is entitled to, and no `:rep`
   permission in this table is book-wide today)."
-  (:require [clojure.set :as set]
+  (:require [kotoba.lang.coll :as set]
             [crm.facts :as facts]
             [crm.store :as store]
             [kotoba.crm.pipeline :as pipeline]

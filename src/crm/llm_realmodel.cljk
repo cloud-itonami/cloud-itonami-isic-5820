@@ -69,7 +69,7 @@
   cloud-itonami-isic-6399/dev/real_advisor_check.cljk), NOT part of the
   CI suite (needs a live token)."
   (:require [kotoba.lang.text :as str]
-            [clojure.data.json :as json]
+            [kotoba.json :as json]
             [langchain.model :as model]
             [crm.llm :as llm])
   (:import (java.net URI)

@@ -17,7 +17,7 @@
   are: this is I/O/crypto infrastructure glue over the already-portable
   `crm.store/Store` protocol, not a reimplementation of any
   governance/domain logic."
-  (:require [kotoba.lang.text :as str]
+  (:require [kotoba.bytes :as kbytes] [kotoba.lang.text :as str]
             [ed25519.core :as ed]
             [cacao.core :as cacao]
             [langchain.kotoba-db :as kdb]
@@ -72,7 +72,7 @@
   matches `kotobase.graph/graph-cid-from-name` (net-kotobase clj-edge) and
   `tsumugu.cacao/graph-cid-from-name` byte-for-byte."
   [^String name]
-  (let [hash (sha256 (.getBytes name "UTF-8"))
+  (let [hash (sha256 (kbytes/utf8-bytes name))
         cid (byte-array (concat [(unchecked-byte 0x01) (unchecked-byte 0x71)
                                   (unchecked-byte 0x12) (unchecked-byte 0x20)]
                                  (seq hash)))]

@@ -57,9 +57,8 @@
     write-then-rename per mutation (see `persist!`) — good enough for a
     single operator's dev/small-deployment durability, not a
   replacement for a real transactional database."
-  (:require [kotoba.lang.edn :as edn]
-            [crm.store :as store])
-  (:import (java.io File)))
+  (:require [kotoba.io :as kio] [kotoba.lang.edn :as edn]
+            [crm.store :as store]))
 
 (defn- persist!
   "Writes `db` (the full in-memory map: :reps :accounts :opportunities
@@ -69,9 +68,9 @@
   previous good snapshot stays live at `path` until the new one has
   fully landed on disk."
   [path db]
-  (let [tmp (File. (str path ".tmp"))]
+  (let [tmp (kio/file (str path ".tmp"))]
     (spit tmp (pr-str db))
-    (.renameTo tmp (File. (str path)))))
+    (kio/rename-to tmp (kio/file (str path)))))
 
 (defn- load-or-seed!
   "Loads `path`'s EDN snapshot if it exists; otherwise seeds it with
@@ -80,8 +79,8 @@
   behaves like a fresh `seed-db` on first boot but is durable from then
   on."
   [path]
-  (let [f (File. (str path))]
-    (if (.exists f)
+  (let [f (kio/file (str path))]
+    (if (kio/exists? f)
       (edn/read-string (slurp f))
       (let [db (assoc (store/demo-data) :ledger [])]
         (persist! path db)

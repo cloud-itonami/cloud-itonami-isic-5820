@@ -19,7 +19,7 @@
     That remains unverified until an operator with real credentials
     exercises it."
   (:require [kotoba.test :refer [deftest is testing]]
-            [clojure.data.json :as json]
+            [kotoba.json :as json]
             [org.httpkit.server :as httpkit]
             [crm.llm :as llm]
             [crm.llm-realmodel :as realmodel]
