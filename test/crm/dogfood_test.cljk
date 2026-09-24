@@ -16,7 +16,7 @@
   (Lead/Trial), ZERO closed-won (externalPaid=0). The 5820 self-referential
   account sits at :negotiation (intended Managed CRM Starter, NOT a real
   charge). No amounts are booked."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [crm.store :as store]
             [crm.operation :as operation]
             [langgraph.graph :as g]))

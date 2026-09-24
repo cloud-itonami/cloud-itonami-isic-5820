@@ -9,7 +9,7 @@
   Scenarios reuse the exact governed cases `crm.sim` already exercises
   (op1: clean stage transition -> commit; op3: discount-authority
   exceeded -> hard hold) rather than inventing new ones."
-  (:require [clojure.test :refer [deftest is testing use-fixtures]]
+  (:require [kotoba.test :refer [deftest is testing use-fixtures]]
             [clojure.data.json :as json]
             [org.httpkit.server :as httpkit]
             [crm.http :as http]

@@ -18,7 +18,7 @@
     model API in this sandbox, and this file does not pretend otherwise.
     That remains unverified until an operator with real credentials
     exercises it."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [clojure.data.json :as json]
             [org.httpkit.server :as httpkit]
             [crm.llm :as llm]

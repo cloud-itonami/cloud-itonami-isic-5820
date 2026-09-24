@@ -4,7 +4,7 @@
   math directly against a hand-built multi-opportunity/multi-subscription
   fixture, plus the RBAC decision (`:pipeline/dashboard-query`,
   `:sales-manager`-only) as enforced by `crm.policy/check` directly."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [crm.dashboard :as dashboard]
             [crm.policy :as policy]
             [crm.store :as store]))

@@ -2,7 +2,7 @@
   "The governor contract as executable tests. Single invariant under
   test: RevOps-LLM never transitions/discloses/resolves a record the
   SubscriptionGovernor would reject."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [langgraph.graph :as g]
             [crm.store :as store]
             [crm.operation :as op]))

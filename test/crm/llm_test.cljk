@@ -1,5 +1,5 @@
 (ns crm.llm-test
-  (:require [clojure.test :refer [deftest is]]
+  (:require [kotoba.test :refer [deftest is]]
             [crm.store :as store]
             [crm.llm :as llm]))
 
