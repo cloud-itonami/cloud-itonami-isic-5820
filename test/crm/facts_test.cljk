@@ -1,5 +1,5 @@
 (ns crm.facts-test
-  (:require [clojure.test :refer [deftest is]]
+  (:require [kotoba.test :refer [deftest is]]
             [crm.facts :as facts]))
 
 (deftest class-allowed?-rejects-unlisted-classes

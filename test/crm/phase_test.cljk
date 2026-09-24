@@ -1,5 +1,5 @@
 (ns crm.phase-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [langgraph.graph :as g]
             [crm.store :as store]
             [crm.operation :as op]))

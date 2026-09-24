@@ -6,7 +6,7 @@
   suite has no network access and must stay hermetic)."
   (:require [clojure.edn :as edn]
             [kotoba.lang.text :as str]
-            [clojure.test :refer [deftest is testing]]
+            [kotoba.test :refer [deftest is testing]]
             [crm.kotobase :as kb]
             [crm.store :as store]))
 

@@ -4,7 +4,7 @@
   :jurisdiction :registration-no :status ...}`) — no dependency on
   `cloud-itonami-isic-8291`'s code at all, same decoupling the ns
   docstring itself describes."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [crm.dossier-import :as di]
             [crm.store :as store]))
 
