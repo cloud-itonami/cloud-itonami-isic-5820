@@ -4,7 +4,7 @@
   actual live-network round-trip against kotobase.net was verified
   manually (2026-07-18) — see this session's ADR — not re-run here (this
   suite has no network access and must stay hermetic)."
-  (:require [clojure.edn :as edn]
+  (:require [kotoba.lang.edn :as edn]
             [kotoba.lang.text :as str]
             [kotoba.test :refer [deftest is testing]]
             [crm.kotobase :as kb]
