@@ -215,7 +215,7 @@
   so it's surfaced as 202 with the thread-id and reason rather than
   silently blocking or 500ing."
   [actor request context]
-  (let [thread-id (str (java.util.UUID/randomUUID))
+  (let [thread-id (str (random-uuid))
         res (g/run* actor {:request request :context context} {:thread-id thread-id})
         state (:state res)
         disposition (:disposition state)]
