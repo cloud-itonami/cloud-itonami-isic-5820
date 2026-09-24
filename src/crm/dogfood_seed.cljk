@@ -19,8 +19,7 @@
   Idempotent: re-running overwrites with the same dogfood snapshot (the
   ledger is reset to the seed fact; governed transitions applied AFTER
   seeding live in the store and persist normally)."
-  (:require [clojure.java.io :as io])
-  (:import [java.io File]))
+  (:require [kotoba.io :as io]))
 
 (defn dogfood-data
   "cloud-itonami's own 4-vertical funnel as a 5820 store snapshot. Mirrors
@@ -64,9 +63,9 @@
   (typically $ISIC5820_STORE_FILE)."
   [path]
   (let [db (dogfood-data)
-        tmp (File. (str path ".tmp"))]
+        tmp (io/file (str path ".tmp"))]
     (io/make-parents path)
     (spit tmp (pr-str db))
-    (.renameTo tmp (File. (str path)))
+    (io/rename-to tmp (io/file (str path)))
     (println (str "wrote dogfood seed -> " path
                   " (4 accounts, 5 opportunities, 0 closed-won, $0 revenue)"))))
