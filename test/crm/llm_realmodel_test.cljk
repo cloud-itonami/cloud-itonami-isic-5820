@@ -18,7 +18,7 @@
     model API in this sandbox, and this file does not pretend otherwise.
     That remains unverified until an operator with real credentials
     exercises it."
-  (:require [kotoba.test :refer [deftest is testing]]
+  (:require [kotoba.lang.error :as kerror] [kotoba.test :refer [deftest is testing]]
             [kotoba.json :as json]
             [org.httpkit.server :as httpkit]
             [crm.llm :as llm]
@@ -101,7 +101,7 @@
 ;; ───────────────────────── real-chat-model provider dispatch ─────────────────────────
 
 (deftest real-chat-model-throws-on-unsupported-provider
-  (is (thrown-with-msg? clojure.lang.ExceptionInfo #"unsupported ISIC5820_MODEL_PROVIDER"
+  (is (thrown-with-msg? kerror/ExceptionInfo #"unsupported ISIC5820_MODEL_PROVIDER"
         (realmodel/real-chat-model {:provider "made-up-vendor" :api-key "k"
                                     :http-fn (fn [_] {:status 200 :body "{}"})}))))
 
