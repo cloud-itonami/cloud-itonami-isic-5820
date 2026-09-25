@@ -4,7 +4,7 @@
   actual live-network round-trip against kotobase.net was verified
   manually (2026-07-18) — see this session's ADR — not re-run here (this
   suite has no network access and must stay hermetic)."
-  (:require [kotoba.lang.edn :as edn]
+  (:require [kotoba.lang.error :as kerror] [kotoba.lang.edn :as edn]
             [kotoba.lang.text :as str]
             [kotoba.test :refer [deftest is testing]]
             [crm.kotobase :as kb]
@@ -89,7 +89,7 @@
 (deftest kotobase-store-requires-a-seed
   (testing "fail-closed: this Store must never silently fall back to an
            unauthenticated or misconfigured connection"
-    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"no seed"
+    (is (thrown-with-msg? kerror/ExceptionInfo #"no seed"
                           (kb/kotobase-store {:seed-hex nil :json-write pr-str
                                              :json-read edn/read-string})))))
 
