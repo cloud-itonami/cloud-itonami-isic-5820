@@ -2,7 +2,7 @@
   "A `crm.store/Store` backed by a live kotobase-server graph (kotobase.net),
   self-sovereign via this actor's OWN Ed25519 key — no owner hand-off, no
   shared secret. Same pattern as com-etzhayyim-tsumugu's tsumugu.cacao/
-  tsumugu.kotoba (CLAUDE.md \"kotoba-server（kotobase.net）= actor が自分の鍵で
+  tsumugu.kotoba (AGENTS.md \"kotoba-server（kotobase.net）= actor が自分の鍵で
   CACAO を自己発行\"): the actor mints its own transact-scoped CACAO for
   `kotobase/db/<its-own-did>/<db-name>` and presents that, never a
   platform-held token. Faithful port of `tsumugu.cacao`'s canonical-graph/

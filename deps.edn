@@ -61,7 +61,7 @@ io.github.kotoba-lang/langgraph
         ;; kotobase.net Store backend (src/crm/kotobase.cljk): self-sovereign
         ;; CACAO mint (this actor's own Ed25519 key, never a handed token) —
         ;; same pattern as com-etzhayyim-tsumugu's tsumugu.cacao/tsumugu.kotoba
-        ;; (CLAUDE.md "kotoba-server (kotobase.net) = actor が自分の鍵で CACAO
+        ;; (AGENTS.md "kotoba-server (kotobase.net) = actor が自分の鍵で CACAO
         ;; を自己発行"). :local/root during monorepo dev, git dep for a clean
         ;; clone (mirrors org-chainagnostic-cacao's own :local vs default split).
         io.github.kotoba-lang/org-chainagnostic-cacao
