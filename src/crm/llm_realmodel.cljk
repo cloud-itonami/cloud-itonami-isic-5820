@@ -16,7 +16,7 @@
   `crm.file-store` are: a real outbound HTTP call to an external model API
   needs a real HTTP client, and there is no portable 'open a TCP socket to
   the internet' primitive at the kotoba-wasm/clojurewasm/cljs/nbb tier
-  this fleet prefers (CLAUDE.md's `.cljc`/`.kotoba` runtime-priority
+  this fleet prefers (AGENTS.md's `.cljc`/`.kotoba` runtime-priority
   section). This is infrastructure glue over `crm.llm`'s already-portable
   domain logic, not a reimplementation of it.
 

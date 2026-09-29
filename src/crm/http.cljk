@@ -5,7 +5,7 @@
   Clojure library invoked only via `kbb -M:dev:run` or test code.
 
   JVM-only (`.clj`, not `.cljc`) is the correct choice here per this
-  fleet's runtime-priority convention (CLAUDE.md's `.cljc`/`.kotoba`
+  fleet's runtime-priority convention (AGENTS.md's `.cljc`/`.kotoba`
   section): there is no portable 'bind a TCP socket and run an HTTP
   server' primitive at the kotoba-wasm/clojurewasm/cljs/nbb level, and
   this file is infrastructure glue (a server binding) over app logic
